@@ -1,0 +1,45 @@
+{
+  "name": "jobcheats",
+  "version": "0.0.0",
+  "private": true,
+  "description": "This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.",
+  "homepage": "https://github.com/Marlve/jobcheats#readme",
+  "bugs": {
+    "url": "https://github.com/Marlve/jobcheats/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Marlve/jobcheats.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev:react": "vite",
+    "dev:electron": "electron .",
+    "transpile:electron": "tsc --project src/electron/tsconfig.json",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "dist:mac": "npm run transpile:electron && npm run build && electron-builder --mac --arm64",
+    "dist:win": "npm run transpile:electron && npm run build && electron-builder --win --x64",
+    "dist:linux": "npm run transpile:electron && npm run build && electron-builder --linux --x64"
+
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.15.3",
+    "electron": "^43.1.0",
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "oxlint": "^1.71.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1"
+  }
+}
