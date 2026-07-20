@@ -6,5 +6,10 @@ electron.contextBridge.exposeInMainWorld("electron", {
       callback(stats)
     })
   },
+
   getStaticData: () => electron.ipcRenderer.invoke("getStaticData"),
+
+  openLinkedIn: () => electron.ipcRenderer.invoke("openLinkedIn"),
+
+  openSeek: () => electron.ipcRenderer.invoke("openSeek")
 })

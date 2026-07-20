@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react'
 import './App.css'
 
 function App() {
+  const routing = {
+    handleLinkedIn: async () => await window.electron.openLinkedIn(),
+
+    handleSeek: async () => await window.electron.openSeek()
+  }
   const [count, setCount] = useState(0)
 
   useEffect(() => {
@@ -26,58 +31,19 @@ function App() {
         >
           Count is {count}
         </button>
+        <button
+          onClick={routing.handleLinkedIn}
+        >
+          Log In to LinkedIn
+        </button>
+        <button
+          onClick={routing.handleSeek}
+        >
+          Log In to Seek
+        </button>
       </section>
 
       <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
     </>
   )
 }

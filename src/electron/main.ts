@@ -3,6 +3,8 @@ import path from 'path';
 import { isDev } from './util.js';
 import { getStaticData, pollResource } from './resourceManager.js';
 import { getPreloadPath } from './pathResolver.js';
+import { registerLinkedInIPC } from './ipc/linkedin.js';
+import { registerSeekIPC } from './ipc/seek.js';
 
 app.on("ready", () => {
   const mainWindow = new BrowserWindow({
@@ -14,12 +16,14 @@ app.on("ready", () => {
     mainWindow.loadURL('http://localhost:5123');
   } else {
     mainWindow.loadFile(path.join(app.getAppPath(), '/dist-react/index.html'));
-
   }
 
   pollResource(mainWindow);
 
   ipcMain.handle("getStaticData", () =>{
     return getStaticData()
-  })
+  });
+
+  registerLinkedInIPC()
+  registerSeekIPC()
 });

@@ -7,7 +7,7 @@ type Statistics = {
 type StaticData = {
   totalStorage: {
     total: number,
-    
+
   },
   cpuModel: String,
   totalMemoryGB: number;
@@ -16,6 +16,11 @@ type StaticData = {
 interface Window {
   electron: {
     subscribeStatistics: (callback: (statistics: Statistics) => void) => void;
-    getStaticData: ()=> Promise<StaticData>
+
+    getStaticData: ()=> Promise<StaticData>;
+
+    openLinkedIn: () => Promise<void>;
+
+    openSeek: () => Promise<void>;
   }
 }
