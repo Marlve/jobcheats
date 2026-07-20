@@ -11,12 +11,12 @@ export function pollResource(mainWindow: BrowserWindow) {
     const ramUsage = getRamUsage();
     const storageData = getStorageData();
     mainWindow.webContents.send("statistics", {
-      cpuUsage, ramUsage, storuageUsage: storageData.usage,
+      cpuUsage, ramUsage, storageUsage: storageData.usage,
     });
   }, POLLING_INTERVAL);
 }
 
-export function getStaticData() {
+export function getStaticData(): StaticData {
   const totalStorage = getStorageData();
   const cpuModel = os.cpus()[0].model;
   const totalMemoryGB = Math.floor(osUtils.totalmem() / 1024)
