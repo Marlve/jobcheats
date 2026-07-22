@@ -3,8 +3,7 @@ import path from 'path';
 import { isDev } from './util.js';
 import { getStaticData, pollResource } from './resourceManager.js';
 import { getPreloadPath } from './pathResolver.js';
-import { registerLinkedInIPC } from './ipc/linkedin.js';
-import { registerSeekIPC } from './ipc/seek.js';
+import { registerWebsiteIPC } from './ipc/website.js';
 
 app.on("ready", () => {
   const mainWindow = new BrowserWindow({
@@ -24,6 +23,5 @@ app.on("ready", () => {
     return getStaticData()
   });
 
-  registerLinkedInIPC()
-  registerSeekIPC()
+  registerWebsiteIPC()
 });

@@ -11,5 +11,7 @@ electron.contextBridge.exposeInMainWorld("electron", {
 
   openLinkedIn: () => electron.ipcRenderer.invoke("openLinkedIn"),
 
-  openSeek: () => electron.ipcRenderer.invoke("openSeek")
+  openSeek: () => electron.ipcRenderer.invoke("openSeek"),
+
+  scrapeLinkedIn: () => electron.ipcRenderer.invoke("scrapeLinkedIn")
 })

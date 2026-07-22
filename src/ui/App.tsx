@@ -3,9 +3,11 @@ import './App.css'
 
 function App() {
   const routing = {
-    handleLinkedIn: async () => await window.electron.openLinkedIn(),
+    openLinkedIn: async () => await window.electron.openLinkedIn(),
+  }
 
-    handleSeek: async () => await window.electron.openSeek()
+  const playwright = {
+    scrapeLinkedIn: async () => await window.electron.scrapeLinkedIn()
   }
   const [count, setCount] = useState(0)
 
@@ -32,14 +34,15 @@ function App() {
           Count is {count}
         </button>
         <button
-          onClick={routing.handleLinkedIn}
+          onClick={routing.openLinkedIn}
         >
           Log In to LinkedIn
         </button>
+
         <button
-          onClick={routing.handleSeek}
+          onClick={playwright.scrapeLinkedIn}
         >
-          Log In to Seek
+          Scrape LinkedIn
         </button>
       </section>
 
