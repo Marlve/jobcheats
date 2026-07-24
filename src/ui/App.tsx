@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react'
 import './App.css'
 
 function App() {
-  const routing = {
-    openLinkedIn: async () => await window.electron.openLinkedIn(),
-  }
-
   const playwright = {
     scrapeLinkedIn: async () => await window.electron.scrapeLinkedIn()
+  }
+  const db = {
+    checkDB: async () => await window.electron.checkDB()
   }
   const [count, setCount] = useState(0)
 
@@ -33,16 +32,16 @@ function App() {
         >
           Count is {count}
         </button>
-        <button
-          onClick={routing.openLinkedIn}
-        >
-          Log In to LinkedIn
-        </button>
 
         <button
           onClick={playwright.scrapeLinkedIn}
         >
           Scrape LinkedIn
+        </button>
+        <button
+          onClick={db.checkDB}
+        >
+          Check Database
         </button>
       </section>
 

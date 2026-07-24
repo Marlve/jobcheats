@@ -17,13 +17,11 @@ interface Window {
   electron: {
     subscribeStatistics: (callback: (statistics: Statistics) => void) => void;
 
-    getStaticData: ()=> Promise<StaticData>;
-
-    openLinkedIn: () => Promise<void>;
-
-    openSeek: () => Promise<void>;
+    getStaticData: () => Promise<StaticData>;
 
     scrapeLinkedIn: () => Promise<void>;
+
+    checkDB: () => Promise<void>
   }
 }
 
@@ -36,6 +34,14 @@ interface PlaywrightCookie {
   httpOnly: boolean;
   secure: boolean;
   sameSite: "Strict" | "Lax" | "None";
+}
+
+interface Job {
+  jobId: string,
+  title: string,
+  company: string,
+  location: string,
+  aboutText: string
 }
 
 interface StorageState {
