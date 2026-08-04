@@ -43,11 +43,21 @@ test('known multi-word skills survive as one keyword', () => {
   expect(keywords).toContain('machine learning');
 });
 
-test('dictionary skills are weighted above merely frequent words', () => {
-  const keywords = extractKeywords(RESUME);
-  const typescript = keywords.find((k) => k.keyword === 'typescript');
+test('weight is the occurrence count, capped at 3', () => {
+  // Weight is what the UI shows as the x1/x2/x3 chip badge, so it has to be
+  // something the user can verify by looking at their own resume.
+  const keywords = extractKeywords('python python python python docker');
 
-  expect(typescript?.weight).toBe(2);
+  expect(keywords.find((k) => k.keyword === 'python')?.weight).toBe(3);
+  expect(keywords.find((k) => k.keyword === 'docker')?.weight).toBe(1);
+});
+
+test('dictionary skills outrank equally frequent non-skills', () => {
+  // Ranking and weight are separate: the dictionary decides what makes the
+  // list, occurrence count decides the badge.
+  const keywords = extractKeywords('wombat wombat python python', 1);
+
+  expect(keywords.map((k) => k.keyword)).toEqual(['python']);
 });
 
 test('single characters and bare numbers are excluded', () => {

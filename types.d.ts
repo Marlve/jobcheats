@@ -1,27 +1,6 @@
-type Statistics = {
-  cpuUsage: number,
-  ramUsage: number,
-  storageUsage: number,
-};
-
-type StaticData = {
-  totalStorage: {
-    total: number,
-
-  },
-  cpuModel: string,
-  totalMemoryGB: number;
-};
-
 interface Window {
   electron: {
-    subscribeStatistics: (callback: (statistics: Statistics) => void) => void;
-
-    getStaticData: () => Promise<StaticData>;
-
     // ---- scraping ----
-    scrapeLinkedIn: (params: SearchParams) => Promise<ScrapeResult>;
-
     scrapeAll: (params: SearchParams) => Promise<ScrapeResult[]>;
 
     cancelScrape: () => Promise<boolean>;
@@ -43,8 +22,13 @@ interface Window {
 
     pruneOldJobs: () => Promise<number>;
 
+    getAppConfig: () => Promise<AppConfig>;
+
     // ---- resume ----
-    pickResume: () => Promise<string | null>;
+    pickResume: () => Promise<PickedFile | null>;
+
+    /** Resolves a dropped File to a disk path; '' when unavailable. */
+    getPathForFile: (file: File) => string;
 
     uploadResume: (filePath: string) => Promise<UploadResumeResult>;
 
@@ -60,8 +44,6 @@ interface Window {
     removeKeyword: (id: number) => Promise<boolean>;
 
     setKeywordEnabled: (id: number, enabled: boolean) => Promise<boolean>;
-
-    setKeywordWeight: (id: number, weight: number) => Promise<boolean>;
 
     resetKeywords: () => Promise<ResumeKeyword[]>;
 
@@ -133,6 +115,21 @@ interface ListJobsOptions {
   search?: string;
 }
 
+/**
+ * Product rules the main process enforces, surfaced so the UI can describe them
+ * without keeping its own copy of the numbers. These are facts, not preferences
+ * — nothing in the renderer can change them.
+ */
+interface AppConfig {
+  retentionDays: number;
+  /** Hard ceiling on how many jobs a single run will scrape per board. */
+  maxJobsPerBoard: number;
+  defaultDatePosted: DatePosted;
+  /** A job at or above this score counts as a strong match. */
+  matchThreshold: number;
+  maxResumeBytes: number;
+}
+
 interface DbStats {
   inboxCount: number;
   archiveCount: number;
@@ -199,6 +196,15 @@ interface ResumeMeta {
   mime: string;
   uploadedAt: string;
   textLength: number;
+  bytes: number;
+}
+
+/** A file chosen in the picker but not yet parsed or stored. */
+interface PickedFile {
+  path: string;
+  filename: string;
+  bytes: number;
+  extension: string;
 }
 
 interface ResumeKeyword {
@@ -215,9 +221,18 @@ type UploadResumeFailure =
   | 'no-text-layer'
   | 'unreadable'
 
+/** What the rejected file turned out to be — shown alongside the error. */
+interface RejectedFile {
+  filename: string;
+  bytes: number;
+  extension: string;
+  pages?: number;
+  characters?: number;
+}
+
 type UploadResumeResult =
   | { ok: true; resume: ResumeMeta; keywords: ResumeKeyword[] }
-  | { ok: false; reason: UploadResumeFailure; error: string }
+  | { ok: false; reason: UploadResumeFailure; error: string; file?: RejectedFile }
 
 // ---------- insights ----------
 

@@ -21,13 +21,26 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   '.txt': 'text/plain',
 }
 
-function failure(reason: UploadResumeFailure, error: string): UploadResumeResult {
-  return { ok: false, reason, error }
+function failure(
+  reason: UploadResumeFailure,
+  error: string,
+  file?: RejectedFile
+): UploadResumeResult {
+  return { ok: false, reason, error, file }
+}
+
+function describeFile(filePath: string, bytes: number): RejectedFile {
+  return {
+    filename: path.basename(filePath),
+    bytes,
+    extension: path.extname(filePath).toLowerCase().replace('.', ''),
+  }
 }
 
 // ---------- text extraction ----------
 
-async function extractPdfText(filePath: string): Promise<string> {
+/** Page count comes back too, so a rejected scan can say "2 pages, 0 characters". */
+async function extractPdf(filePath: string): Promise<{ text: string; pages: number }> {
   const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
 
   const data = new Uint8Array(fs.readFileSync(filePath))
@@ -46,7 +59,7 @@ async function extractPdfText(filePath: string): Promise<string> {
       pages.push(text)
     }
 
-    return pages.join('\n')
+    return { text: pages.join('\n'), pages: document.numPages }
   } finally {
     // destroy() lives on the loading task, not the document proxy, and tears
     // down the worker — skipping it leaks a process per upload.
@@ -60,11 +73,14 @@ async function extractDocxText(filePath: string): Promise<string> {
   return value
 }
 
-async function extractText(filePath: string, extension: string): Promise<string> {
+async function extractText(
+  filePath: string,
+  extension: string
+): Promise<{ text: string; pages?: number }> {
   switch (extension) {
-    case '.pdf': return extractPdfText(filePath)
-    case '.docx': return extractDocxText(filePath)
-    case '.txt': return fs.readFileSync(filePath, 'utf8')
+    case '.pdf': return extractPdf(filePath)
+    case '.docx': return { text: await extractDocxText(filePath) }
+    case '.txt': return { text: fs.readFileSync(filePath, 'utf8') }
     default: throw new Error(`Unsupported extension ${extension}`)
   }
 }
@@ -93,7 +109,7 @@ function clearStoredFiles() {
 
 export const resumeService = {
   /** Opens the native picker. The renderer is sandboxed, so main owns file access. */
-  pickResume: async (): Promise<string | null> => {
+  pickResume: async (): Promise<PickedFile | null> => {
     const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
 
     const options: Electron.OpenDialogOptions = {
@@ -107,16 +123,26 @@ export const resumeService = {
       : await dialog.showOpenDialog(options)
 
     if (result.canceled || result.filePaths.length === 0) return null
-    return result.filePaths[0]
+
+    const filePath = result.filePaths[0]
+    let bytes = 0
+    try {
+      bytes = fs.statSync(filePath).size
+    } catch {
+      bytes = 0
+    }
+
+    return {
+      path: filePath,
+      filename: path.basename(filePath),
+      bytes,
+      extension: path.extname(filePath).toLowerCase().replace('.', ''),
+    }
   },
 
   uploadResume: async (filePath: string): Promise<UploadResumeResult> => {
     const extension = path.extname(filePath).toLowerCase()
     const mime = MIME_BY_EXTENSION[extension]
-
-    if (!mime) {
-      return failure('unsupported-type', 'Only PDF, DOCX and TXT resumes are supported.')
-    }
 
     let stats: fs.Stats
     try {
@@ -125,44 +151,63 @@ export const resumeService = {
       return failure('unreadable', 'That file could not be opened.')
     }
 
+    const described = describeFile(filePath, stats.size)
+
+    if (!mime) {
+      return failure(
+        'unsupported-type',
+        'Only PDF, DOCX and TXT can be parsed. Everything else is rejected before anything is written to disk — your current resume is untouched.',
+        described
+      )
+    }
+
     if (stats.size > MAX_RESUME_BYTES) {
       const limitMb = Math.round(MAX_RESUME_BYTES / (1024 * 1024))
-      return failure('too-large', `That file is larger than ${limitMb} MB.`)
+      return failure('too-large', `That file is larger than ${limitMb} MB.`, described)
     }
 
     let text: string
+    let pages: number | undefined
     try {
-      text = await extractText(filePath, extension)
+      const extracted = await extractText(filePath, extension)
+      text = extracted.text
+      pages = extracted.pages
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       if (/password/i.test(message)) {
-        return failure('unreadable', 'That PDF is password protected. Remove the password and try again.')
+        return failure(
+          'unreadable',
+          'That PDF is password protected. Remove the password and try again.',
+          described
+        )
       }
       console.error('[resume] extraction failed:', message)
-      return failure('unreadable', `That file could not be read: ${message}`)
+      return failure('unreadable', `That file could not be read: ${message}`, described)
     }
 
     // A scanned PDF opens fine and yields nothing. Accepting it silently would
     // produce zero keywords and an all-zero match column with no explanation.
-    if (text.trim().length < MIN_RESUME_TEXT_CHARS) {
+    const characters = text.trim().length
+    if (characters < MIN_RESUME_TEXT_CHARS) {
       return failure(
         'no-text-layer',
         extension === '.pdf'
-          ? 'No selectable text found — this looks like a scanned PDF. Export a text-based PDF and try again.'
-          : 'That file contains too little text to extract keywords from.'
+          ? 'The file opened fine, but every page is an image of your resume rather than text — so there is nothing for JobMatch to read.'
+          : 'That file contains too little text to extract keywords from.',
+        { ...described, pages, characters }
       )
     }
 
-    const filename = path.basename(filePath)
+    const filename = described.filename
 
     try {
       replaceStoredFile(filePath, filename)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      return failure('unreadable', `Could not store the resume: ${message}`)
+      return failure('unreadable', `Could not store the resume: ${message}`, described)
     }
 
-    saveResume(filename, mime, text)
+    saveResume(filename, mime, text, stats.size)
     replaceAutoKeywords(extractKeywords(text))
     recomputeAll()
 

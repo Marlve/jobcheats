@@ -1,4 +1,5 @@
 import { ipcMain } from "electron"
+import { appConfig } from "../config.js"
 import {
   countJobs,
   getDbStats,
@@ -36,6 +37,8 @@ export function registerDbIPC() {
   ipcMain.handle("getDbStats", (): DbStats => getDbStats())
 
   ipcMain.handle("pruneOldJobs", (): number => pruneOldJobs())
+
+  ipcMain.handle("getAppConfig", (): AppConfig => appConfig())
 
   ipcMain.handle("listRuns", (_event, raw: unknown): ScrapeRun[] => {
     return listRuns(validateLimit(raw, 20, 200))

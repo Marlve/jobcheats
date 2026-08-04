@@ -51,11 +51,3 @@ export function listRuns(limit = 20): ScrapeRun[] {
 
   return rows.map(toRun)
 }
-
-export function getLastRun(source?: JobSource): ScrapeRun | null {
-  const row = source
-    ? db.prepare('SELECT * FROM scrape_runs WHERE source = ? ORDER BY started_at DESC LIMIT 1').get(source)
-    : db.prepare('SELECT * FROM scrape_runs ORDER BY started_at DESC LIMIT 1').get()
-
-  return row ? toRun(row as RunRecord) : null
-}

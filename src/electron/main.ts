@@ -1,7 +1,6 @@
-import {app, BrowserWindow, ipcMain} from 'electron';
+import {app, BrowserWindow} from 'electron';
 import path from 'path';
 import { isDev } from './util.js';
-import { getStaticData, pollResource } from './resourceManager.js';
 import { getPreloadPath } from './pathResolver.js';
 import { registerWebsiteIPC } from './ipc/website.js';
 import { registerDbIPC } from './ipc/db.js';
@@ -11,6 +10,12 @@ import { closeDb, pruneOldJobs } from './db/db.js';
 
 app.on("ready", () => {
   const mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 860,
+    // The layout reflows down to the icon-rail sidebar; below this it just gets
+    // cramped, so stop the window there rather than letting it be dragged smaller.
+    minWidth: 720,
+    minHeight: 560,
     webPreferences: {
       preload: getPreloadPath(),
       contextIsolation: true,
@@ -23,12 +28,6 @@ app.on("ready", () => {
   } else {
     mainWindow.loadFile(path.join(app.getAppPath(), '/dist-react/index.html'));
   }
-
-  pollResource(mainWindow);
-
-  ipcMain.handle("getStaticData", () =>{
-    return getStaticData()
-  });
 
   registerWebsiteIPC()
   registerDbIPC()

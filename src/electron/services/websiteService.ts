@@ -28,11 +28,15 @@ function errorMessage(err: unknown): string {
 /**
  * The daily contract: last 24 hours, capped per board. Applied here rather than
  * at the call site so every entry point inherits it.
+ *
+ * The window is a default, not a ceiling — a caller that asks for a wider one
+ * gets it. The job cap stays a hard ceiling, because it bounds how long a run
+ * can hold the browser open.
  */
 function applyDailyDefaults(params: SearchParams): SearchParams {
   return {
     ...params,
-    datePosted: DEFAULT_DATE_POSTED,
+    datePosted: params.datePosted ?? DEFAULT_DATE_POSTED,
     maxJobs: Math.min(params.maxJobs ?? MAX_JOBS_PER_BOARD, MAX_JOBS_PER_BOARD),
   }
 }
@@ -116,15 +120,6 @@ async function runBoard(
   }
 }
 
-async function runScrape(
-  source: JobSource,
-  params: SearchParams,
-  onProgress: ProgressReporter
-): Promise<ScrapeResult> {
-  const [result] = await runScrapeAll([source], params, onProgress)
-  return result
-}
-
 /** Runs boards one at a time — they share a single browser profile. */
 async function runScrapeAll(
   sources: JobSource[],
@@ -170,8 +165,6 @@ export function registeredSources(): JobSource[] {
 }
 
 export const websiteService = {
-  scrape: runScrape,
-
   scrapeAll: (params: SearchParams, onProgress: ProgressReporter) =>
     runScrapeAll(registeredSources(), params, onProgress),
 
@@ -187,9 +180,4 @@ export const websiteService = {
     activeToken?.cancel()
     await playwrightService.closeBrowser()
   },
-}
-
-export const linkedinService = {
-  scrapeJobs: (params: SearchParams, onProgress: ProgressReporter) =>
-    runScrape('linkedin', params, onProgress),
 }

@@ -1,0 +1,187 @@
+/* Insights — the read-back of the job database against the resume. */
+
+.insights__title {
+  font-weight: 600;
+}
+
+.insights--empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.insights__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+}
+
+/* ---------- hero figure ----------
+
+   Proportional figures, not tabular — tabular-nums gives every digit the width
+   of a zero, which reads loose at display sizes. */
+.hero-figure {
+  margin: 18px 0 0;
+  font-size: 48px;
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.hero-figure__unit {
+  margin-left: 2px;
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.insights__sub {
+  margin-top: 6px;
+}
+
+.insights__caveat {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--status-warning-surface);
+  color: var(--text-primary);
+  max-width: 620px;
+}
+
+/* ---------- distribution ----------
+
+   A bar per band, one baseline, counts labelled on every row — four rows is a
+   table as much as a chart, so no legend and no axis are needed. */
+
+.dist {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 18px 0 0;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Capped — a track running the full card width makes a count of 6 read as a
+     long journey to a small number. */
+  max-width: 620px;
+}
+
+.dist__row {
+  display: grid;
+  grid-template-columns: 72px 52px minmax(80px, 1fr) 40px;
+  align-items: center;
+  gap: 12px;
+}
+
+.dist__label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dist__range {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The unfilled track is a lighter step, so the row reads as a meter even at
+   zero. */
+.dist__track {
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-inset);
+  overflow: hidden;
+}
+
+/* Square at the baseline, rounded at the data end. */
+.dist__bar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  transition: width 300ms ease;
+}
+
+/* Above the match threshold the bar is green, below it neutral — the same
+   single-accent rule the score badges use. Depth carries the ordering. */
+.dist__bar--strong {
+  background: var(--score-strong);
+}
+
+.dist__bar--good {
+  background: color-mix(in srgb, var(--score-strong) 55%, transparent);
+}
+
+.dist__bar--marginal {
+  background: color-mix(in srgb, var(--text-primary) 28%, transparent);
+}
+
+.dist__bar--weak {
+  background: color-mix(in srgb, var(--text-primary) 13%, transparent);
+}
+
+.dist__count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ---------- keyword groups ---------- */
+
+.kwgroup + .kwgroup {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.kwgroup:first-of-type {
+  margin-top: 18px;
+}
+
+.kwgroup__hint {
+  margin-top: 6px;
+  max-width: 620px;
+}
+
+.kwgroup__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Actionable chips — clicking removes or adds the keyword. */
+.chip--action {
+  cursor: pointer;
+  gap: 6px;
+  padding-right: 10px;
+  color: var(--text-primary);
+}
+
+.chip--action:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+
+.chip--action svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.chip--action:hover svg {
+  color: var(--text-primary);
+}
+
+@media (max-width: 720px) {
+  .dist__row {
+    grid-template-columns: 68px 48px minmax(60px, 1fr) 34px;
+    gap: 8px;
+  }
+}

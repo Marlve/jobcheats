@@ -159,15 +159,13 @@ export function validateNotes(raw: unknown): string {
 }
 
 /**
- * The renderer supplies a path from the native picker, but it is still renderer
- * input — restrict it to the extensions we can actually parse.
+ * Only checks that a path was supplied. The extension whitelist lives in
+ * resumeService, which can report *which* file was rejected and why — rejecting
+ * here would throw that detail away before the UI could show it.
  */
 export function validateResumePath(raw: unknown): string {
   if (typeof raw !== 'string' || !raw.trim()) {
     throw new ValidationError('A file path is required')
-  }
-  if (!/\.(pdf|docx|txt)$/i.test(raw)) {
-    throw new ValidationError('Only PDF, DOCX and TXT resumes are supported')
   }
   return raw
 }

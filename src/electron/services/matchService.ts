@@ -46,5 +46,3 @@ export function scoreNewJobs(runId: number): number {
   setJobMatches(matches)
   return matches.length
 }
-
-export { scoreJob } from "./matching.js"

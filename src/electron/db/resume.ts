@@ -7,27 +7,29 @@ type ResumeRecord = {
   mime: string
   text: string
   uploaded_at: string
+  bytes: number
 }
 
 /**
  * There is only ever one resume — the `CHECK (id = 1)` constraint on the table
  * makes that structural, so replacing is a plain upsert at id 1.
  */
-export function saveResume(filename: string, mime: string, text: string) {
+export function saveResume(filename: string, mime: string, text: string, bytes: number) {
   db.prepare(`
-    INSERT INTO resume (id, filename, mime, text, uploaded_at)
-    VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO resume (id, filename, mime, text, bytes, uploaded_at)
+    VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT (id) DO UPDATE SET
       filename    = excluded.filename,
       mime        = excluded.mime,
       text        = excluded.text,
+      bytes       = excluded.bytes,
       uploaded_at = CURRENT_TIMESTAMP
-  `).run(filename, mime, text)
+  `).run(filename, mime, text, bytes)
 }
 
 function getResumeRecord(): ResumeRecord | null {
   const row = db
-    .prepare('SELECT filename, mime, text, uploaded_at FROM resume WHERE id = 1')
+    .prepare('SELECT filename, mime, text, uploaded_at, bytes FROM resume WHERE id = 1')
     .get() as ResumeRecord | undefined
   return row ?? null
 }
@@ -42,15 +44,12 @@ export function getResumeMeta(): ResumeMeta | null {
     mime: record.mime,
     uploadedAt: record.uploaded_at,
     textLength: record.text.length,
+    bytes: record.bytes,
   }
 }
 
 export function getResumeText(): string | null {
   return getResumeRecord()?.text ?? null
-}
-
-export function hasResume(): boolean {
-  return getResumeRecord() !== null
 }
 
 export function deleteResume(): boolean {
@@ -93,13 +92,6 @@ export function listEnabledKeywords(): ResumeKeyword[] {
   return listKeywords().filter(keyword => keyword.enabled)
 }
 
-export function getKeyword(id: number): ResumeKeyword | null {
-  const row = db
-    .prepare('SELECT id, keyword, weight, source, enabled FROM resume_keywords WHERE id = ?')
-    .get(id) as KeywordRecord | undefined
-  return row ? toKeyword(row) : null
-}
-
 /** Returns null when the keyword already exists. */
 export function addKeyword(
   keyword: string,
@@ -134,13 +126,6 @@ export function setKeywordEnabled(id: number, enabled: boolean): boolean {
   return Number(changes) > 0
 }
 
-export function setKeywordWeight(id: number, weight: number): boolean {
-  const { changes } = db
-    .prepare('UPDATE resume_keywords SET weight = ? WHERE id = ?')
-    .run(weight, id)
-  return Number(changes) > 0
-}
-
 /**
  * Replaces auto-extracted keywords, leaving manual ones alone — a re-upload
  * should not silently discard keywords the user added by hand.
@@ -157,8 +142,4 @@ export function replaceAutoKeywords(keywords: { keyword: string; weight: number 
       if (normalized) insert.run(normalized, weight)
     }
   })
-}
-
-export function deleteAllKeywords() {
-  db.exec('DELETE FROM resume_keywords')
 }

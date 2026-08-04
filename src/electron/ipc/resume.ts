@@ -7,7 +7,6 @@ import {
   listKeywords,
   removeKeyword,
   setKeywordEnabled,
-  setKeywordWeight,
 } from "../db/db.js"
 import {
   validateBoolean,
@@ -62,10 +61,6 @@ export function registerResumeIPC() {
 
   ipcMain.handle("setKeywordEnabled", (_event, rawId: unknown, rawEnabled: unknown): boolean =>
     afterKeywordChange(setKeywordEnabled(validateId(rawId), validateBoolean(rawEnabled, 'enabled')))
-  )
-
-  ipcMain.handle("setKeywordWeight", (_event, rawId: unknown, rawWeight: unknown): boolean =>
-    afterKeywordChange(setKeywordWeight(validateId(rawId), validateWeight(rawWeight)))
   )
 
   /** Re-derives auto keywords from the stored resume text. */

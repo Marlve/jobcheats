@@ -77,12 +77,16 @@ export function isKnownSkill(term: string): boolean {
   return SKILLS.has(term)
 }
 
+/** Importance is capped at 3 — the UI renders it as the x1/x2/x3 chip badge. */
+const MAX_WEIGHT = 3
+
 /**
  * Ranks the terms that best characterise a resume.
  *
- * Frequency alone surfaces filler, so dictionary skills are boosted an order of
- * magnitude. Weight 2 marks a recognised skill ("High" in the UI), 1 a term that
- * merely occurs often.
+ * Ranking and weight are deliberately different things. Dictionary skills are
+ * boosted an order of magnitude so they win a place in the list at all, but the
+ * weight shown to the user is just how often the term appears — that is what a
+ * person can verify by looking at their own resume.
  */
 export function extractKeywords(text: string, limit = AUTO_KEYWORD_COUNT): ExtractedKeyword[] {
   const frequencies = termFrequencies(text)
@@ -97,8 +101,8 @@ export function extractKeywords(text: string, limit = AUTO_KEYWORD_COUNT): Extra
 
   return ranked
     .slice(0, Math.max(limit, 0))
-    .map(({ keyword }) => ({
+    .map(({ keyword, frequency }) => ({
       keyword,
-      weight: isKnownSkill(keyword) ? 2 : 1,
+      weight: Math.min(MAX_WEIGHT, frequency),
     }))
 }

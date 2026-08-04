@@ -1,17 +1,7 @@
 const electron = require('electron');
 
 electron.contextBridge.exposeInMainWorld("electron", {
-  subscribeStatistics: (callback: (statistics: Statistics) => void) => {
-    electron.ipcRenderer.on("statistics", (_: unknown, stats: Statistics) => {
-      callback(stats)
-    })
-  },
-
-  getStaticData: () => electron.ipcRenderer.invoke("getStaticData"),
-
   // ---- scraping ----
-  scrapeLinkedIn: (params: SearchParams) => electron.ipcRenderer.invoke("scrapeLinkedIn", params),
-
   scrapeAll: (params: SearchParams) => electron.ipcRenderer.invoke("scrapeAll", params),
 
   cancelScrape: () => electron.ipcRenderer.invoke("cancelScrape"),
@@ -39,8 +29,22 @@ electron.contextBridge.exposeInMainWorld("electron", {
 
   pruneOldJobs: () => electron.ipcRenderer.invoke("pruneOldJobs"),
 
+  getAppConfig: () => electron.ipcRenderer.invoke("getAppConfig"),
+
   // ---- resume ----
   pickResume: () => electron.ipcRenderer.invoke("pickResume"),
+
+  /**
+   * Electron removed `File.path`, so a dropped file's location can only be
+   * resolved here in the preload. Returns '' if the object isn't a real file.
+   */
+  getPathForFile: (file: File): string => {
+    try {
+      return electron.webUtils.getPathForFile(file)
+    } catch {
+      return ''
+    }
+  },
 
   uploadResume: (filePath: string) => electron.ipcRenderer.invoke("uploadResume", filePath),
 
@@ -58,9 +62,6 @@ electron.contextBridge.exposeInMainWorld("electron", {
 
   setKeywordEnabled: (id: number, enabled: boolean) =>
     electron.ipcRenderer.invoke("setKeywordEnabled", id, enabled),
-
-  setKeywordWeight: (id: number, weight: number) =>
-    electron.ipcRenderer.invoke("setKeywordWeight", id, weight),
 
   resetKeywords: () => electron.ipcRenderer.invoke("resetKeywords"),
 

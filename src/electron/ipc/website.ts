@@ -23,15 +23,6 @@ function parseParams(raw: unknown): { params: SearchParams } | { error: string }
 export function registerWebsiteIPC() {
   // Failures are returned, not thrown, so the renderer gets a usable result
   // instead of an "Error invoking remote method" string.
-  ipcMain.handle("scrapeLinkedIn", async (event: IpcMainInvokeEvent, raw: unknown): Promise<ScrapeResult> => {
-    const parsed = parseParams(raw)
-    if ('error' in parsed) {
-      return { ok: false, source: 'linkedin', runId: null, error: parsed.error }
-    }
-
-    return websiteService.scrape('linkedin', parsed.params, progressReporter(event.sender))
-  });
-
   ipcMain.handle("scrapeAll", async (event: IpcMainInvokeEvent, raw: unknown): Promise<ScrapeResult[]> => {
     const parsed = parseParams(raw)
     if ('error' in parsed) {

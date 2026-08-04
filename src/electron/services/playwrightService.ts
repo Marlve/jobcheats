@@ -20,7 +20,7 @@ async function getWindowId(page: Page) {
  * Window state is cosmetic — a CDP failure (detached target, closed page)
  * should never abort a scrape.
  */
-async function setWindowState(page: Page, windowState: 'minimized' | 'normal') {
+async function setWindowState(page: Page, windowState: 'normal') {
   try {
     const { client, windowId } = await getWindowId(page)
     await client.send('Browser.setWindowBounds', { windowId, bounds: { windowState } })
@@ -64,8 +64,6 @@ export const playwrightService = {
       console.warn('[playwright] close failed:', err instanceof Error ? err.message : err)
     })
   },
-
-  hideWindow: (page: Page) => setWindowState(page, 'minimized'),
 
   showWindow: async (page: Page) => {
     await setWindowState(page, 'normal')

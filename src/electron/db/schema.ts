@@ -144,6 +144,9 @@ export function migrate() {
   db.exec(CREATE_KEYWORDS_TABLE)
   db.exec(CREATE_RUNS_TABLE)
 
+  // File size, shown on the resume card.
+  addColumn('resume', 'bytes', 'INTEGER NOT NULL DEFAULT 0')
+
   db.exec('CREATE INDEX IF NOT EXISTS idx_jobs_first_seen ON jobs (first_seen_at DESC)')
   db.exec('CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs (status)')
   db.exec('CREATE INDEX IF NOT EXISTS idx_jobs_match_score ON jobs (match_score DESC)')

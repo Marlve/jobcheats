@@ -1,0 +1,549 @@
+/* Shared primitives from the JobMatch design system. */
+
+/* ---------- button ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: var(--body-size);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.btn--sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: var(--label-size);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+}
+
+.btn--primary {
+  background: var(--accent-base);
+  color: var(--accent-on);
+}
+.btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn--secondary {
+  background: var(--bg-elevated);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+.btn--secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn--ghost:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Outline danger — used for "Replace resume", which arms a destructive flow
+   rather than performing it. */
+.btn--danger {
+  background: transparent;
+  border-color: var(--status-danger-border);
+  color: var(--status-danger);
+}
+.btn--danger:hover:not(:disabled) {
+  background: var(--status-danger-surface);
+}
+
+/* Solid danger — reserved for the button that actually deletes. */
+.btn--danger-solid {
+  background: var(--status-danger);
+  color: #ffffff;
+}
+.btn--danger-solid:hover:not(:disabled) {
+  background: #832525;
+}
+
+/* ---------- card ---------- */
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.card--flush {
+  padding: 0;
+}
+
+/* ---------- keyword chip ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 6px 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-default);
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  font-size: var(--label-size);
+  font-weight: 500;
+}
+
+.chip__count {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-dim);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  line-height: 1;
+}
+.chip__remove:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Manually added keywords are amber-tinted so they read as yours, not the
+   parser's — and they survive a resume replacement. */
+.chip--manual {
+  background: var(--status-warning-surface);
+  border-color: var(--status-warning-border);
+}
+.chip--manual .chip__count {
+  background: rgb(20 19 22 / 10%);
+  color: var(--status-warning);
+}
+
+.chip--disabled {
+  background: var(--bg-surface);
+  border-color: var(--border-subtle);
+  color: var(--text-muted);
+}
+.chip--disabled .chip__label {
+  text-decoration: line-through;
+}
+.chip--disabled .chip__count {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+/* Compact chip — matched keywords, locations, anything secondary. */
+.chip--sm {
+  height: 24px;
+  padding: 0 10px;
+  font-size: var(--caption-size);
+  font-weight: 400;
+}
+
+.chip--static {
+  color: var(--text-muted);
+  background: transparent;
+  border-style: dashed;
+}
+
+.chip__label {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+}
+
+/* ---------- badge ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--status-danger-border);
+  background: var(--status-danger-surface-strong);
+  color: var(--status-danger);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ---------- score badge / status pill ----------
+
+   One accent, spent once. The score is already an exact number, so colour is
+   not asked to carry the scale — it marks the single distinction that changes
+   what you do: at or above the match threshold (60), or below it. Green at or
+   above, neutral below, with a faint fill separating Marginal from Weak.
+
+   The earlier version gave each band its own hue. Hue is a categorical channel
+   and a 0-100 score is ordered data, so that mapping had to be memorised —
+   nothing about blue says "lower than green".
+
+   The score is a rounded rectangle rather than a pill; a two-digit number in a
+   pill reads as a circle. */
+
+.score,
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.score {
+  min-width: 42px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--label-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.score--lg {
+  min-width: 50px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  font-size: 17px;
+}
+
+/* At or above the threshold — two depths of the same green. */
+.score--strong {
+  background: color-mix(in srgb, var(--score-strong) 26%, transparent);
+  border-color: color-mix(in srgb, var(--score-strong) 55%, transparent);
+  color: var(--score-strong);
+}
+
+.score--good {
+  background: color-mix(in srgb, var(--score-strong) 12%, transparent);
+  border-color: color-mix(in srgb, var(--score-strong) 30%, transparent);
+  color: var(--score-strong);
+}
+
+/* Below it — neutral. Text is --text-secondary, not --text-muted, which only
+   reaches 2.85:1 on white. */
+.score--marginal {
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.score--weak,
+.score--none {
+  background: transparent;
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.pill {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Status is categorical, so hue would be legitimate here — but nearly every row
+   is 'new', and colouring the default state is just noise. Colour goes to the
+   two that mean you acted on something. */
+.pill--new {
+  background: transparent;
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.pill--saved {
+  background: color-mix(in srgb, var(--score-strong) 20%, transparent);
+  border-color: color-mix(in srgb, var(--score-strong) 45%, transparent);
+  color: var(--score-strong);
+}
+
+.pill--applied {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--accent-on);
+}
+
+.pill--rejected {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+/* ---------- add keyword ---------- */
+
+.keyword-add {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.keyword-add__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.keyword-add__row .input-icon {
+  flex: 0 1 280px;
+  min-width: 140px;
+}
+
+.keyword-add__row .input {
+  height: 32px;
+  padding-left: 10px;
+}
+
+.keyword-add__error {
+  color: var(--status-danger);
+}
+
+/* Visible to screen readers only. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- field ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.input,
+.select {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--body-size);
+  min-width: 0;
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--accent-base);
+  outline-offset: 1px;
+}
+
+.textarea {
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--body-size);
+  resize: vertical;
+  min-height: 72px;
+}
+
+.input-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 160px;
+}
+
+.input-icon svg {
+  position: absolute;
+  left: 10px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.input-icon .input {
+  width: 100%;
+  padding-left: 32px;
+}
+
+/* Segmented control — a small set of exclusive choices, e.g. date posted. */
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-inset);
+}
+
+.segmented button {
+  height: 30px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--label-size);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgb(20 19 22 / 8%);
+}
+
+/* ---------- stepper ---------- */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.step__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: var(--caption-size);
+  font-weight: 600;
+}
+
+.step--active .step__dot {
+  background: var(--accent-base);
+  border-color: var(--accent-base);
+  color: var(--accent-on);
+}
+
+.step--done .step__dot {
+  background: var(--accent-dim);
+  border-color: var(--accent-border);
+  color: var(--accent-hover);
+}
+
+.step__label {
+  font-size: var(--body-size);
+  color: var(--text-muted);
+}
+
+.step--active .step__label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.step__rule {
+  flex: 1;
+  height: 1px;
+  min-width: 24px;
+  background: var(--border-subtle);
+}
+
+/* ---------- modal ---------- */
+
+.modal__scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.modal {
+  width: min(560px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-modal);
+}
+
+/* ---------- misc ---------- */
+
+.icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+}
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.banner__icon {
+  flex-shrink: 0;
+  color: var(--status-warning);
+  margin-top: 1px;
+}
