@@ -1,184 +1,260 @@
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
-
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
+/* The shell is pinned to the viewport and only the screen body scrolls. With no
+   OS title bar there is nothing above the content to stop it sliding under the
+   window controls, so the surfaces those controls sit on must not scroll away. */
+.app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-canvas);
 }
 
-.hero {
-  position: relative;
+/* ---------- window chrome ---------- */
 
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
+/*
+ * There is no OS title bar (see titleBarStyle in src/electron/main.ts). The top
+ * --titlebar-h of the window is the app's own, and the sidebar and screen
+ * header both start below it — so the buttons sit on an empty strip instead of
+ * crowding the header's contents, and the actions stay on the gutter with the
+ * cards beneath them.
+ *
+ * The whole sidebar and header are drag handles (double-clicking either
+ * maximises); interactive children opt back out. WindowControls fills the right
+ * of the strip on Windows and Linux; on macOS the traffic lights land in the
+ * left of it, over the sidebar.
+ */
 
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
+.window-controls {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  -webkit-app-region: no-drag;
 }
 
-#center {
+.window-controls__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: var(--titlebar-h);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.window-controls__btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.window-controls__btn:active {
+  background: var(--bg-subtle);
+}
+
+.window-controls__btn--close:hover {
+  background: var(--status-danger);
+  color: #ffffff;
+}
+
+.window-controls__btn--close:active {
+  background: #832525;
+}
+
+/* Flush against the window edge, so an outset ring would be clipped. */
+.window-controls__btn:focus-visible {
+  outline-offset: -3px;
+}
+
+/* ---------- sidebar ---------- */
+
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
+  gap: 24px;
+  /* Top padding clears the title bar strip, putting the brand on the same line
+     as the screen title next to it. */
+  padding: calc(var(--titlebar-h) + 4px) 16px 20px;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  -webkit-app-region: drag;
 }
 
-#next-steps {
+.sidebar__brand {
   display: flex;
-  border-top: 1px solid var(--border);
-  text-align: left;
-
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 0;
 }
 
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
+.sidebar__mark {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--accent-base);
+  box-shadow: inset 0 0 0 5px var(--bg-surface);
 }
 
-#next-steps ul {
+.sidebar__nav {
   list-style: none;
+  margin: 0;
   padding: 0;
   display: flex;
-  gap: 8px;
-  margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
+  flex-direction: column;
+  gap: 2px;
 }
 
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
-}
-
-.ticks {
-  position: relative;
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--body-size);
+  text-align: left;
+  -webkit-app-region: no-drag;
+}
 
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
+/* The items sit 2px apart, so the global 2px-outset focus ring would overhang
+   the neighbour below and read as one merged block once that neighbour is
+   hovered. Draw the ring inside the item instead. */
+.sidebar__link:focus-visible {
+  outline-offset: -2px;
+}
+
+.sidebar__link:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar__link--active {
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.sidebar__privacy {
+  margin-top: auto;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-inset);
+}
+
+.sidebar__privacy-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: var(--label-size);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ---------- screen ---------- */
+
+.screen {
+  flex: 1;
+  min-width: 0;
+  /* Lets the body shrink to the shell instead of stretching it. */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  /* Matches the sidebar: content starts below the title bar strip. */
+  padding: calc(var(--titlebar-h) + 4px) var(--gutter) 20px;
+  /* Strip, a button row, and the bottom padding — so even a header with no
+     actions is tall enough that nothing else reaches the window buttons. */
+  min-height: calc(var(--titlebar-h) + 64px);
+  border-bottom: 1px solid var(--border-subtle);
+  -webkit-app-region: drag;
+}
+
+.screen__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Anything clickable inside the drag surface has to opt back out, or the press
+   starts a window move instead of activating the control. */
+.screen__header :is(button, a, input, select, textarea, label) {
+  -webkit-app-region: no-drag;
+}
+
+.screen__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px var(--gutter) 48px;
+  max-width: var(--content-max);
+  width: 100%;
+}
+
+/* ---------- placeholder screens ---------- */
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 48px 24px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-inset);
+}
+
+/* ---------- narrow windows ---------- */
+
+/* Collapse the sidebar to an icon rail. Labels are hidden rather than removed,
+   so the buttons keep their accessible names via aria-label. */
+@media (max-width: 840px) {
+  .sidebar {
+    padding: calc(var(--titlebar-h) + 4px) 8px 20px;
+    align-items: center;
   }
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
+  .sidebar__label {
+    display: none;
   }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
+
+  .sidebar__brand {
+    padding: 4px 0 0;
+    justify-content: center;
+  }
+
+  .sidebar__link {
+    justify-content: center;
+    padding: 9px 0;
+  }
+
+  .sidebar__privacy {
+    padding: 10px 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .sidebar__privacy-title {
+    margin-bottom: 0;
   }
 }

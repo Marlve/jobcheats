@@ -1,0 +1,384 @@
+/* Resume screen — A1 states from the JobMatch design. */
+
+.intro {
+  max-width: 720px;
+}
+
+.intro__copy {
+  margin-top: 8px;
+  max-width: 660px;
+}
+
+/* ---------- dropzone ---------- */
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: clamp(28px, 5vw, 48px) 24px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-inset);
+  text-align: center;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.dropzone--active {
+  border-color: var(--accent-base);
+  background: var(--accent-subtle);
+}
+
+.dropzone--error {
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-surface);
+}
+
+.dropzone__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.dropzone__icon--error {
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-surface-strong);
+  color: var(--status-danger);
+}
+
+.dropzone__error-title {
+  color: var(--status-danger);
+}
+
+.dropzone__copy {
+  max-width: 620px;
+}
+
+.dropzone__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.dropzone .btn--primary {
+  margin-top: 6px;
+}
+
+/* ---------- file row ---------- */
+
+.file-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.file-row__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 40px;
+  margin: 12px 0 0;
+}
+
+.meta div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta dd {
+  margin: 0;
+}
+
+.file-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.file-strip__icon {
+  color: var(--text-muted);
+  display: inline-flex;
+}
+
+.file-strip .badge {
+  margin-left: auto;
+}
+
+/* ---------- parsing ---------- */
+
+.progress {
+  height: 6px;
+  margin: 20px 0 16px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-inset);
+  overflow: hidden;
+}
+
+.progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent-base);
+  transition: width 400ms ease;
+}
+
+.stage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: var(--body-size);
+}
+
+.stage--done {
+  color: var(--text-primary);
+}
+
+.stage__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border-strong);
+  color: #ffffff;
+}
+
+.stage--done .stage__dot {
+  background: var(--score-strong);
+  border-color: var(--score-strong);
+}
+
+/* ---------- recovery steps ---------- */
+
+.recovery__title {
+  margin-bottom: 14px;
+}
+
+.recovery {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recovery li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.recovery__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: var(--caption-size);
+}
+
+/* ---------- keywords ---------- */
+
+.keywords__header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.keywords__title {
+  font-weight: 600;
+}
+
+.keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Top-aligned, not centred: the add field grows a second line when it shows a
+   validation error, and centring would lift the input row while leaving the
+   Show all/fewer toggle behind. Aligning tops keeps both controls on the same
+   line and lets the error hang underneath. */
+.keywords__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.keywords__note {
+  margin-top: 12px;
+  max-width: 620px;
+}
+
+/* ---------- replace dialog ---------- */
+
+.replace__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.replace__warn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--status-danger-surface-strong);
+  color: var(--status-danger);
+}
+
+.replace__danger {
+  color: var(--status-danger);
+  margin-top: 2px;
+}
+
+/* Both panels stretch to the taller of the two, so the before/after pair reads
+   as a matched comparison even when one filename or date wraps. */
+.replace__diff {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.replace__file {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-inset);
+}
+
+.replace__file--out {
+  border-color: var(--status-danger-border);
+}
+
+.replace__file--in {
+  border-color: var(--status-positive-border);
+}
+
+.replace__out-label {
+  color: var(--status-danger);
+}
+
+.replace__in-label {
+  color: var(--score-strong);
+}
+
+.replace__strike {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.replace__arrow {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.replace__list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 20px 0 0;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.replace__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.replace__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  margin-top: 1px;
+}
+
+/* Losses read as a bare mark, keeps as a filled token — the asymmetry is in the
+   design and keeps "what survives" the more reassuring shape. */
+.replace__item--loss .replace__icon {
+  background: transparent;
+  color: var(--status-danger);
+}
+
+.replace__item--keep .replace__icon {
+  background: var(--score-strong);
+  color: #ffffff;
+}
+
+.replace__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ---------- narrow windows ---------- */
+
+/* Side-by-side stops working once each panel drops under ~200px, so the
+   before/after pair becomes a vertical stack with the arrow turned to match. */
+@media (max-width: 620px) {
+  .replace__diff {
+    flex-direction: column;
+  }
+
+  .replace__arrow {
+    transform: rotate(90deg);
+  }
+
+  .replace__actions .btn {
+    flex: 1;
+  }
+}

@@ -1,53 +1,42 @@
-import { useEffect, useState } from 'react'
-import './App.css'
+import { useState } from 'react';
+import { Sidebar, type Route } from './components/Sidebar';
+import { WindowControls } from './components/WindowControls';
+import { ResumeScreen } from './screens/ResumeScreen';
+import { InboxScreen } from './screens/InboxScreen';
+import { ScanScreen } from './screens/ScanScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
+import './App.css';
 
 function App() {
-  const playwright = {
-    scrapeLinkedIn: async () => await window.electron.scrapeLinkedIn()
-  }
-  const db = {
-    checkDB: async () => await window.electron.checkDB()
-  }
-  const [count, setCount] = useState(0)
+  // Insights is the design's default landing tab, and the resume lives inside
+  // it until the insights screen itself is designed.
+  const [route, setRoute] = useState<Route>('insights');
 
-  useEffect(() => {
-    window.electron.subscribeStatistics(stats => console.log(stats));
-  }, [])
+  // macOS draws its own traffic lights, and a plain browser tab has no window
+  // to control — both leave the strip empty.
+  const ownsWindowButtons = Boolean(window.electron) && window.electron.platform !== 'darwin';
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+    <div className="app">
+      <Sidebar route={route} onNavigate={setRoute} />
 
-        <button
-          onClick={playwright.scrapeLinkedIn}
-        >
-          Scrape LinkedIn
-        </button>
-        <button
-          onClick={db.checkDB}
-        >
-          Check Database
-        </button>
-      </section>
+      <main className="screen">
+        {(route === 'insights' || route === 'resume') && <ResumeScreen />}
+        {/* Inbox and archive are the same list over a different slice. */}
+        {route === 'inbox' && <InboxScreen key="inbox" view="inbox" />}
+        {route === 'archive' && <InboxScreen key="archive" view="archive" />}
+        {route === 'scan' && <ScanScreen />}
+        {route === 'settings' && <SettingsScreen />}
+      </main>
 
-      <div className="ticks"></div>
-    </>
-  )
+      {/* Must stay last. The drag region is a single shape the OS hit-tests
+          against, and it is built by walking the DOM in order — adding each
+          `drag` rect and cutting out each `no-drag` one. Anything draggable
+          that comes after these buttons is added back on top of them, and the
+          clicks go to the title bar instead of the button. */}
+      {ownsWindowButtons && <WindowControls />}
+    </div>
+  );
 }
 
-export default App
+export default App;

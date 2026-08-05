@@ -1,7 +1,18 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
+// Inter is bundled rather than fetched — the app must render correctly offline.
+import '@fontsource/inter/400.css'
+import '@fontsource/inter/500.css'
+import '@fontsource/inter/600.css'
+import '@fontsource/inter/700.css'
+import './tokens.css'
+import './components/ui.css'
 import App from './App.tsx'
+
+// The custom title bar leaves room for the OS window controls, which sit on
+// opposite sides on macOS and Windows. Set once, before first paint, so the
+// chrome never shifts.
+document.documentElement.dataset.platform = window.electron?.platform ?? 'browser'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

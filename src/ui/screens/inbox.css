@@ -1,0 +1,154 @@
+/* Inbox and Archive — the job list. */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.count-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-default);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font-size: var(--label-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.retention-note {
+  margin: -6px 2px 0;
+  max-width: 760px;
+}
+
+/* ---------- list ---------- */
+
+.job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.job {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  transition: border-color 120ms ease;
+}
+
+.job:hover {
+  border-color: var(--border-default);
+}
+
+.job--open {
+  border-color: var(--border-strong);
+}
+
+.job__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+/* The whole title block is the expand target, so it is a button reset rather
+   than a nested control. */
+.job__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  color: inherit;
+}
+
+.job__title {
+  font-weight: 600;
+}
+
+.job__side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.job__chevron {
+  display: inline-flex;
+  color: var(--text-muted);
+  transition: transform 150ms ease;
+}
+
+.job__chevron--open {
+  transform: rotate(180deg);
+}
+
+.job__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding-left: 66px;
+}
+
+.job__source {
+  color: var(--text-secondary);
+}
+
+.job__keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 66px;
+}
+
+.job__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 0 2px 66px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.job__about {
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.job__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-left: 66px;
+}
+
+.job__open {
+  text-decoration: none;
+  margin-left: auto;
+}
+
+/* Narrow windows: drop the score-badge indent so rows keep their width. */
+@media (max-width: 860px) {
+  .job__facts,
+  .job__keywords,
+  .job__body,
+  .job__actions {
+    padding-left: 0;
+  }
+
+  .job__open {
+    margin-left: 0;
+  }
+}

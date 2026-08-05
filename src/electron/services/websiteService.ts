@@ -1,156 +1,229 @@
-import { Page, Locator } from "playwright"
-import { playwrightService } from "../services/playwrightService.js"
-import { insertJob } from "../db/db.js"
+import { playwrightService } from "./playwrightService.js"
+import { finishRun, insertJob, jobExists, pruneOldJobs, startRun } from "../db/db.js"
+import { scoreNewJobs } from "./matchService.js"
+import { linkedinAdapter } from "./boards/linkedin.js"
+import {
+  CancellationToken,
+  JobBoardAdapter,
+  ScrapeCancelledError,
+  ScrapeContext,
+  ScrapeError,
+  ScrapeTally,
+} from "./boards/adapter.js"
+import { DEFAULT_DATE_POSTED, MAX_JOBS_PER_BOARD } from "../config.js"
 
-// ---------- constants ----------
-const LOGIN_URL = "https://www.linkedin.com/login/"
-const JOBS_URL = "https://www.linkedin.com/jobs/"
-const SEARCH_QUERY = "internship posted in the past 24 hour"
-const DEFAULT_TIMEOUT_MS = 10000
-const POLL_INTERVAL_MS = 100
-
-// ---------- selectors ----------
-const SELECTORS = {
-  jobSearchBox: '[componentkey="jobSearchBox"]',
-  jobCard: '[componentkey^="job-card-component-ref-"][role="button"]',
-  jobDetail: '[id^="JobDetails_AboutTheJob_"]',
-  nextButton: '[data-testid^="pagination-controls-next-button-visible"]',
+const adapters: Partial<Record<JobSource, JobBoardAdapter>> = {
+  linkedin: linkedinAdapter,
+  // seek: seekAdapter — implement JobBoardAdapter and register it here.
 }
 
-// ---------- auth / navigation ----------
+/** Boards run in sequence, so one token covers the whole session. */
+let activeToken: CancellationToken | null = null
 
-async function checkForCaptcha(page: Page) {
-  if (!page.url().includes('checkpoint/challenge')) return
+export type ProgressReporter = (progress: ScrapeProgress) => void
 
-  console.log('CAPTCHA detected — please solve manually')
-  await playwrightService.showWindow(page)
+/**
+ * Splits a failure into what the scan screen says and what the terminal keeps.
+ *
+ * Most failures here are not ours: Playwright and Chromium raise things like
+ * "net::ERR_NAME_NOT_RESOLVED at https://…" and "Target page, context or
+ * browser has been closed", which are precise, useful, and no answer at all to
+ * someone looking at a scan that stopped. An adapter that knows better says so
+ * by throwing a ScrapeError; everything else is matched on here, and the
+ * unrecognised remainder gets a message that is at least honest about what
+ * happened to the jobs already found.
+ *
+ * The stack always reaches the console either way — nothing is being hidden,
+ * only moved to where it is useful.
+ */
+function describeFailure(err: unknown): { message: string; detail: string } {
+  const detail = err instanceof Error ? err.stack ?? err.message : String(err)
 
-  while (page.url().includes('checkpoint/challenge')) {
-    await page.waitForTimeout(2000)
-  }
+  if (err instanceof ScrapeError) return { message: err.userMessage, detail }
 
-  console.log('Resolved — resuming')
-  await playwrightService.hideWindow(page)
-}
+  const raw = err instanceof Error ? err.message : String(err)
 
-async function login(page: Page) {
-  await page.goto(LOGIN_URL)
-
-  const result = await Promise.race([
-    page.waitForURL('**checkpoint/challenge**', { timeout: 0 }).then(() => 'challenge' as const),
-    page.waitForURL('**/feed/**', { timeout: 0 }).then(() => 'feed' as const),
-  ]).catch(() => 'timeout' as const)
-
-  if (result === 'timeout') {
-    throw new Error(`Login did not reach feed or challenge in time. Current URL: ${page.url()}`)
-  }
-}
-
-async function searchJobs(page: Page) {
-  console.log("searching for jobs")
-  await page.goto(JOBS_URL)
-
-  const searchBox = page.locator(SELECTORS.jobSearchBox)
-  await searchBox.first().waitFor({ timeout: DEFAULT_TIMEOUT_MS })
-
-  await searchBox.click()
-  await searchBox.fill(SEARCH_QUERY)
-  await searchBox.press('Enter')
-}
-
-// ---------- job extraction ----------
-
-async function extractJobCardInfo(jobCard: Locator) {
-  const title = await jobCard.locator('span[aria-hidden="true"]').first().innerText()
-
-  const paragraphs = jobCard.locator('p')
-  const pCount = await paragraphs.count()
-
-  const company = pCount > 1 ? await paragraphs.nth(1).innerText() : null
-  const location = pCount > 2 ? await paragraphs.nth(2).innerText() : null
-
-  return { title, company, location }
-}
-
-function buildJob(
-  jobId: string | null,
-  title: string | null,
-  company: string | null,
-  location: string | null,
-  aboutText: string
-): Job | null {
-  if (!jobId || !title || !company || !location) {
-    console.log('Missing required field, skipping job')
-    return null
-  }
-  return { jobId, title, company, location, aboutText }
-}
-
-async function waitForTextChange(jobDetail: Locator, previousText: string, timeoutMs = DEFAULT_TIMEOUT_MS) {
-  const start = Date.now()
-
-  while (Date.now() - start < timeoutMs) {
-    const current = await jobDetail.innerText().catch(() => '')
-    if (current.trim().length > 0 && current.trim() !== previousText.trim()) {
-      return current
-    }
-    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
-  }
-
-  throw new Error('Timed out waiting for job detail text to change')
-}
-
-async function processJobCard(page: Page, jobCard: Locator, jobDetail: Locator) {
-  const { title, company, location } = await extractJobCardInfo(jobCard)
-  const previousText = await jobDetail.innerText().catch(() => '')
-
-  await jobCard.click()
-
-  const text = await waitForTextChange(jobDetail, previousText)
-
-  const url = new URL(page.url())
-  const jobId = url.searchParams.get('currentJobId')
-
-  return buildJob(jobId, title, company, location, text)
-}
-
-async function iterateJobs(page: Page): Promise<void> {
-  let hasNextPage = true
-
-  while (hasNextPage) {
-    const jobCards = page.locator(SELECTORS.jobCard)
-    await jobCards.first().waitFor({ timeout: DEFAULT_TIMEOUT_MS })
-    const jobsCount = await jobCards.count()
-    const jobDetail = page.locator(SELECTORS.jobDetail)
-
-    for (let j = 0; j < jobsCount; j++) {
-      try {
-        const job = await processJobCard(page, jobCards.nth(j), jobDetail)
-        if (job) insertJob(job)
-      } catch (err: any) {
-        console.log(`Skipped job ${j}:`, err?.message ?? err)
-      }
-    }
-
-    const nextButton = page.locator(SELECTORS.nextButton)
-    hasNextPage = await nextButton.count() > 0
-    if (hasNextPage) await nextButton.click()
-  }
-}
-
-// ---------- entry point ----------
-
-export const linkedinService = {
-  scrapeJobs: async () => {
-    const { page, context } = await playwrightService.openBrowser()
-
-    try {
-      await login(page)
-      await checkForCaptcha(page)
-      await searchJobs(page)
-      await iterateJobs(page)
-    } finally {
-      await context.close()
+  if (/net::|ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ENOTFOUND|EAI_AGAIN/i.test(raw)) {
+    return {
+      message: 'Could not reach the job board. Check your internet connection and try again.',
+      detail,
     }
   }
+
+  if (/Target (page|context)|browser has been closed|Execution context was destroyed/i.test(raw)) {
+    return {
+      message: 'The browser window closed before the scan finished. Everything found before that was kept.',
+      detail,
+    }
+  }
+
+  if (/timeout|timed out/i.test(raw)) {
+    return {
+      message: 'The job board stopped responding, so the scan was cut short. Everything found before that was kept.',
+      detail,
+    }
+  }
+
+  return {
+    message: 'Something went wrong while reading the job board. Everything found before that was kept.',
+    detail,
+  }
+}
+
+/**
+ * The daily contract: last 24 hours, capped per board. Applied here rather than
+ * at the call site so every entry point inherits it.
+ *
+ * The window is a default, not a ceiling — a caller that asks for a wider one
+ * gets it. The job cap stays a hard ceiling, because it bounds how long a run
+ * can hold the browser open.
+ */
+function applyDailyDefaults(params: SearchParams): SearchParams {
+  return {
+    ...params,
+    datePosted: params.datePosted ?? DEFAULT_DATE_POSTED,
+    maxJobs: Math.min(params.maxJobs ?? MAX_JOBS_PER_BOARD, MAX_JOBS_PER_BOARD),
+  }
+}
+
+interface BoardPosition {
+  index: number
+  count: number
+}
+
+async function runBoard(
+  source: JobSource,
+  params: SearchParams,
+  onProgress: ProgressReporter,
+  token: CancellationToken,
+  position: BoardPosition
+): Promise<ScrapeResult> {
+  const adapter = adapters[source]
+  if (!adapter) {
+    console.error(`[${source}] no adapter registered — add one to the adapters map`)
+    return { ok: false, source, runId: null, error: 'This job board is not supported yet.' }
+  }
+
+  const tally: ScrapeTally = { inserted: 0, skipped: 0, failed: 0 }
+  let currentPage = 0
+  const runId = startRun(source)
+
+  const report = (update: Partial<ScrapeProgress> = {}) => {
+    if (update.page !== undefined) currentPage = update.page
+    onProgress({
+      source,
+      phase: 'scraping',
+      page: currentPage,
+      inserted: tally.inserted,
+      skipped: tally.skipped,
+      failed: tally.failed,
+      boardIndex: position.index,
+      boardCount: position.count,
+      ...update,
+    })
+  }
+
+  report({ phase: 'starting' })
+
+  try {
+    const { page } = await playwrightService.openBrowser()
+
+    const ctx: ScrapeContext = {
+      page,
+      params,
+      token,
+      tally,
+      report,
+      saveJob: (job: Job) => insertJob(job, runId),
+      isKnown: (jobId: string) => jobExists(source, jobId),
+    }
+
+    await adapter.run(ctx)
+
+    finishRun(runId, tally)
+    scoreNewJobs(runId)
+    report({ phase: 'done' })
+
+    return { ok: true, source, runId, ...tally, cancelled: false }
+  } catch (err) {
+    if (err instanceof ScrapeCancelledError || token.isCancelled) {
+      finishRun(runId, tally, 'cancelled')
+      // Partial results are still worth scoring.
+      scoreNewJobs(runId)
+      report({ phase: 'cancelled' })
+      return { ok: true, source, runId, ...tally, cancelled: true }
+    }
+
+    const { message, detail } = describeFailure(err)
+    console.error(`[${source}] scrape failed: ${detail}`)
+    finishRun(runId, tally, message)
+    scoreNewJobs(runId)
+    report({ phase: 'error', message })
+
+    return { ok: false, source, runId, error: message }
+  } finally {
+    await playwrightService.closeBrowser()
+  }
+}
+
+/** Runs boards one at a time — they share a single browser profile. */
+async function runScrapeAll(
+  sources: JobSource[],
+  params: SearchParams,
+  onProgress: ProgressReporter
+): Promise<ScrapeResult[]> {
+  if (activeToken || playwrightService.isBusy) {
+    return sources.map(source => ({
+      ok: false as const,
+      source,
+      runId: null,
+      error: 'A scan is already running.',
+    }))
+  }
+
+  const token = new CancellationToken()
+  activeToken = token
+
+  const daily = applyDailyDefaults(params)
+  const results: ScrapeResult[] = []
+
+  try {
+    for (const [index, source] of sources.entries()) {
+      if (token.isCancelled) break
+      results.push(
+        await runBoard(source, daily, onProgress, token, {
+          index: index + 1,
+          count: sources.length,
+        })
+      )
+    }
+  } finally {
+    activeToken = null
+    pruneOldJobs()
+  }
+
+  return results
+}
+
+/** Every board with a registered adapter. */
+export function registeredSources(): JobSource[] {
+  return Object.keys(adapters) as JobSource[]
+}
+
+export const websiteService = {
+  scrapeAll: (params: SearchParams, onProgress: ProgressReporter) =>
+    runScrapeAll(registeredSources(), params, onProgress),
+
+  /** Returns true when a running scrape was signalled to stop. */
+  cancel(): boolean {
+    if (!activeToken) return false
+    activeToken.cancel()
+    return true
+  },
+
+  /** Best-effort teardown for app shutdown. */
+  async shutdown() {
+    activeToken?.cancel()
+    await playwrightService.closeBrowser()
+  },
 }
