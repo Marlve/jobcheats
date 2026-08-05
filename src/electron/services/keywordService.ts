@@ -1,5 +1,5 @@
 import { AUTO_KEYWORD_COUNT } from "../config.js"
-import { SKILLS, SKILL_PHRASES } from "./data/skills.js"
+import { SKILLS, SKILL_ALIASES, SKILL_PHRASES } from "./data/skills.js"
 import { STOPWORDS } from "./data/stopwords.js"
 
 /** How much harder a dictionary skill counts than a merely frequent word. */
@@ -73,8 +73,35 @@ export function documentFrequencies(documents: string[]): Map<string, number> {
   return counts
 }
 
+/**
+ * The one spelling of a skill that everything else compares against.
+ *
+ * Order matters. The alias table wins first, so a variant that also sits in
+ * SKILLS — the dictionary lists "go" and "golang" both — still collapses.
+ * A term the dictionary already knows is then left exactly as written, which
+ * keeps the plural rules below from mangling "sass" into "sas" or "rails" into
+ * "rail". Only after that is a trailing "s" worth trying, in both directions,
+ * so "microservice" and "algorithms" need no entries of their own.
+ *
+ * Unrecognised terms come back unchanged. That is what lets a keyword you added
+ * by hand, for something no dictionary has heard of, still be compared.
+ */
+export function canonicalSkill(term: string): string {
+  const alias = SKILL_ALIASES.get(term)
+  if (alias) return alias
+
+  if (SKILLS.has(term)) return term
+
+  const singular = term.endsWith('s') ? term.slice(0, -1) : null
+  if (singular && SKILLS.has(singular)) return canonicalSkill(singular)
+
+  if (SKILLS.has(`${term}s`)) return canonicalSkill(`${term}s`)
+
+  return term
+}
+
 export function isKnownSkill(term: string): boolean {
-  return SKILLS.has(term)
+  return SKILLS.has(canonicalSkill(term))
 }
 
 /** Importance is capped at 3 — the UI renders it as the x1/x2/x3 chip badge. */

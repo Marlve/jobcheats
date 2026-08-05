@@ -52,6 +52,11 @@ export function getResumeText(): string | null {
   return getResumeRecord()?.text ?? null
 }
 
+/** Cheap existence check — getResumeMeta() would pull the whole text with it. */
+export function hasResume(): boolean {
+  return db.prepare('SELECT 1 FROM resume WHERE id = 1').get() !== undefined
+}
+
 export function deleteResume(): boolean {
   const { changes } = db.prepare('DELETE FROM resume WHERE id = 1').run()
   return Number(changes) > 0

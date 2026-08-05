@@ -1,3 +1,5 @@
+import { Tooltip } from './Tooltip';
+
 /**
  * Match score, banded. The bands mirror SCORE_BANDS in the electron config —
  * Strong 80+, Good 60+, Marginal 40+, Weak below that — and 60 is the threshold
@@ -24,20 +26,19 @@ export const BAND_LABEL: Record<Band, string> = {
 export function ScoreBadge({ score, size = 'md' }: { score: number | null; size?: 'md' | 'lg' }) {
   if (score === null) {
     return (
-      <span className={`score score--none${size === 'lg' ? ' score--lg' : ''}`} title="Not scored yet">
-        —
-      </span>
+      <Tooltip content="Not scored — there is no resume to score it against.">
+        <span className={`score score--none${size === 'lg' ? ' score--lg' : ''}`}>—</span>
+      </Tooltip>
     );
   }
 
   const band = bandFor(score);
 
   return (
-    <span
-      className={`score score--${band}${size === 'lg' ? ' score--lg' : ''}`}
-      title={`${BAND_LABEL[band]} match — ${score} of 100`}
-    >
-      {score}
-    </span>
+    <Tooltip content={`${BAND_LABEL[band]} match — ${score} out of 100, from how much of your resume's keywords this job mentions.`}>
+      <span className={`score score--${band}${size === 'lg' ? ' score--lg' : ''}`}>
+        {score}
+      </span>
+    </Tooltip>
   );
 }

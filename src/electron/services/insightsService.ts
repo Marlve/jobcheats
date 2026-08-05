@@ -6,7 +6,7 @@ import {
   getMatchedKeywordSets,
   listEnabledKeywords,
 } from "../db/db.js"
-import { documentFrequencies, isKnownSkill } from "./keywordService.js"
+import { canonicalSkill, documentFrequencies, isKnownSkill } from "./keywordService.js"
 
 /** Below this many scored jobs the percentages are not worth trusting. */
 const LOW_SAMPLE_THRESHOLD = 10
@@ -61,14 +61,21 @@ export function getInsights(): ResumeInsights {
     .slice(0, TOP_KEYWORDS)
 
   // Skill gaps: dictionary skills that show up across job ads but are absent
-  // from the resume keywords entirely.
-  const known = new Set(keywords.map(keyword => keyword.keyword))
+  // from the resume keywords entirely. Both sides are folded to one spelling
+  // first, or holding "react" would be reported as missing "reactjs".
+  const known = new Set(keywords.map(keyword => canonicalSkill(keyword.keyword)))
   const corpus = getJobCorpus()
-  const frequencies = documentFrequencies(corpus)
   const minHits = Math.max(2, Math.ceil(corpus.length * GAP_MIN_SHARE))
 
+  const frequencies = new Map<string, number>()
+  for (const [term, count] of documentFrequencies(corpus)) {
+    if (!isKnownSkill(term)) continue
+    const skill = canonicalSkill(term)
+    frequencies.set(skill, (frequencies.get(skill) ?? 0) + count)
+  }
+
   const skillGaps = [...frequencies.entries()]
-    .filter(([term, count]) => isKnownSkill(term) && !known.has(term) && count >= minHits)
+    .filter(([term, count]) => !known.has(term) && count >= minHits)
     .map(([term, count]) => ({ keyword: term, hits: count }))
     .sort((a, b) => b.hits - a.hits || a.keyword.localeCompare(b.keyword))
     .slice(0, TOP_GAPS)

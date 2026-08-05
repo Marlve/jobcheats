@@ -160,20 +160,20 @@ export function countJobs(options: ListJobsOptions = {}): number {
 export interface ScorableJob {
   id: number
   title: string
-  company: string
   aboutText: string
 }
 
+/** Company is not selected — the scorer reads requirements, and a company name
+ *  is not one. See the note in `scoreJob`. */
 export function getScorableJobs(runId?: number): ScorableJob[] {
   const rows = runId === undefined
-    ? db.prepare('SELECT id, title, company, about_text FROM jobs').all()
-    : db.prepare('SELECT id, title, company, about_text FROM jobs WHERE run_id = ?').all(runId)
+    ? db.prepare('SELECT id, title, about_text FROM jobs').all()
+    : db.prepare('SELECT id, title, about_text FROM jobs WHERE run_id = ?').all(runId)
 
-  return (rows as { id: number; title: string; company: string; about_text: string }[])
+  return (rows as { id: number; title: string; about_text: string }[])
     .map(row => ({
       id: row.id,
       title: row.title,
-      company: row.company,
       aboutText: row.about_text,
     }))
 }
@@ -278,12 +278,17 @@ export function setJobNotes(id: number, notes: string): boolean {
   return Number(changes) > 0
 }
 
-export function setJobMatch(id: number, score: number, matchedKeywords: string[]) {
+/**
+ * A null score is stored as NULL, not 0 — the job could not be scored at all,
+ * and a 0 would read as "no overlap with your resume" when the truth is that
+ * the posting named nothing to compare against.
+ */
+export function setJobMatch(id: number, score: number | null, matchedKeywords: string[]) {
   updateMatchStmt.run(score, JSON.stringify(matchedKeywords), id)
 }
 
 export function setJobMatches(
-  matches: { id: number; score: number; matchedKeywords: string[] }[]
+  matches: { id: number; score: number | null; matchedKeywords: string[] }[]
 ) {
   withTransaction(() => {
     for (const match of matches) {

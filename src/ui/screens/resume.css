@@ -229,10 +229,14 @@
   gap: 8px;
 }
 
+/* Top-aligned, not centred: the add field grows a second line when it shows a
+   validation error, and centring would lift the input row while leaving the
+   Show all/fewer toggle behind. Aligning tops keeps both controls on the same
+   line and lets the error hang underneath. */
 .keywords__actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   margin-top: 20px;
 }

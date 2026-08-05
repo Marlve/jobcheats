@@ -1,5 +1,22 @@
 interface Window {
   electron: {
+    // ---- window ----
+
+    /** Which platform's window controls the custom title bar sits beside. */
+    platform: string;
+
+    minimizeWindow: () => Promise<void>;
+
+    /** Toggles maximised state and resolves to the state it landed in. */
+    toggleMaximizeWindow: () => Promise<boolean>;
+
+    closeWindow: () => Promise<void>;
+
+    isWindowMaximized: () => Promise<boolean>;
+
+    /** Fires when the window is maximised or restored by any means. */
+    subscribeWindowMaximized: (callback: (maximized: boolean) => void) => () => void;
+
     // ---- scraping ----
     scrapeAll: (params: SearchParams) => Promise<ScrapeResult[]>;
 

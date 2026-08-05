@@ -9,6 +9,7 @@ import {
   IconStop,
   IconWarning,
 } from '../components/Icons';
+import { Select } from '../components/Select';
 import { SOURCE_LABEL } from '../components/StatusPill';
 import { formatDateTime } from '../format';
 import './scan.css';
@@ -28,6 +29,8 @@ const JOB_TYPES: { value: JobType; label: string }[] = [
   { value: 'full-time', label: 'Full-time' },
   { value: 'part-time', label: 'Part-time' },
 ];
+
+const MAX_JOBS = [10, 25, 50].map((n) => ({ value: n, label: `Up to ${n} jobs` }));
 
 const PHASE_LABEL: Record<ScrapePhase, string> = {
   starting: 'Starting up',
@@ -289,32 +292,29 @@ export function ScanScreen() {
             )}
 
           <div className="filter-row">
-            <select
-              className="chip-select"
+            <Select
+              variant="pill"
               value={jobType}
-              aria-label="Job type"
-              onChange={(event) => setJobType(event.target.value as JobType)}
-            >
-              {JOB_TYPES.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
-            </select>
+              options={JOB_TYPES}
+              onChange={setJobType}
+              label="Job type"
+            />
 
-            <select
-              className="chip-select"
+            <Select
+              variant="pill"
               value={datePosted}
-              aria-label="Posted within"
-              onChange={(event) => setDatePosted(event.target.value as DatePosted)}
-            >
-              {DATE_POSTED.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
-            </select>
+              options={DATE_POSTED}
+              onChange={setDatePosted}
+              label="Posted within"
+            />
 
-            <select
-              className="chip-select"
+            <Select
+              variant="pill"
               value={maxJobs}
-              aria-label="Maximum jobs per board"
-              onChange={(event) => setMaxJobs(Number(event.target.value))}
-            >
-              {[10, 25, 50].map((n) => <option key={n} value={n}>Up to {n} jobs</option>)}
-            </select>
+              options={MAX_JOBS}
+              onChange={setMaxJobs}
+              label="Maximum jobs per board"
+            />
 
             <span className="chip-input">
               <IconPin size={15} />

@@ -7,6 +7,7 @@ import {
   JobBoardAdapter,
   ScrapeCancelledError,
   ScrapeContext,
+  ScrapeError,
   ScrapeTally,
 } from "./boards/adapter.js"
 import { DEFAULT_DATE_POSTED, MAX_JOBS_PER_BOARD } from "../config.js"
@@ -21,8 +22,52 @@ let activeToken: CancellationToken | null = null
 
 export type ProgressReporter = (progress: ScrapeProgress) => void
 
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err)
+/**
+ * Splits a failure into what the scan screen says and what the terminal keeps.
+ *
+ * Most failures here are not ours: Playwright and Chromium raise things like
+ * "net::ERR_NAME_NOT_RESOLVED at https://…" and "Target page, context or
+ * browser has been closed", which are precise, useful, and no answer at all to
+ * someone looking at a scan that stopped. An adapter that knows better says so
+ * by throwing a ScrapeError; everything else is matched on here, and the
+ * unrecognised remainder gets a message that is at least honest about what
+ * happened to the jobs already found.
+ *
+ * The stack always reaches the console either way — nothing is being hidden,
+ * only moved to where it is useful.
+ */
+function describeFailure(err: unknown): { message: string; detail: string } {
+  const detail = err instanceof Error ? err.stack ?? err.message : String(err)
+
+  if (err instanceof ScrapeError) return { message: err.userMessage, detail }
+
+  const raw = err instanceof Error ? err.message : String(err)
+
+  if (/net::|ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ENOTFOUND|EAI_AGAIN/i.test(raw)) {
+    return {
+      message: 'Could not reach the job board. Check your internet connection and try again.',
+      detail,
+    }
+  }
+
+  if (/Target (page|context)|browser has been closed|Execution context was destroyed/i.test(raw)) {
+    return {
+      message: 'The browser window closed before the scan finished. Everything found before that was kept.',
+      detail,
+    }
+  }
+
+  if (/timeout|timed out/i.test(raw)) {
+    return {
+      message: 'The job board stopped responding, so the scan was cut short. Everything found before that was kept.',
+      detail,
+    }
+  }
+
+  return {
+    message: 'Something went wrong while reading the job board. Everything found before that was kept.',
+    detail,
+  }
 }
 
 /**
@@ -55,7 +100,8 @@ async function runBoard(
 ): Promise<ScrapeResult> {
   const adapter = adapters[source]
   if (!adapter) {
-    return { ok: false, source, runId: null, error: `No adapter registered for "${source}"` }
+    console.error(`[${source}] no adapter registered — add one to the adapters map`)
+    return { ok: false, source, runId: null, error: 'This job board is not supported yet.' }
   }
 
   const tally: ScrapeTally = { inserted: 0, skipped: 0, failed: 0 }
@@ -108,8 +154,8 @@ async function runBoard(
       return { ok: true, source, runId, ...tally, cancelled: true }
     }
 
-    const message = errorMessage(err)
-    console.error(`[${source}] scrape failed:`, message)
+    const { message, detail } = describeFailure(err)
+    console.error(`[${source}] scrape failed: ${detail}`)
     finishRun(runId, tally, message)
     scoreNewJobs(runId)
     report({ phase: 'error', message })
@@ -131,7 +177,7 @@ async function runScrapeAll(
       ok: false as const,
       source,
       runId: null,
-      error: 'A scrape is already running',
+      error: 'A scan is already running.',
     }))
   }
 

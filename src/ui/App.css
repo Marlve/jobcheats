@@ -1,7 +1,70 @@
+/* The shell is pinned to the viewport and only the screen body scrolls. With no
+   OS title bar there is nothing above the content to stop it sliding under the
+   window controls, so the surfaces those controls sit on must not scroll away. */
 .app {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--bg-canvas);
+}
+
+/* ---------- window chrome ---------- */
+
+/*
+ * There is no OS title bar (see titleBarStyle in src/electron/main.ts). The top
+ * --titlebar-h of the window is the app's own, and the sidebar and screen
+ * header both start below it — so the buttons sit on an empty strip instead of
+ * crowding the header's contents, and the actions stay on the gutter with the
+ * cards beneath them.
+ *
+ * The whole sidebar and header are drag handles (double-clicking either
+ * maximises); interactive children opt back out. WindowControls fills the right
+ * of the strip on Windows and Linux; on macOS the traffic lights land in the
+ * left of it, over the sidebar.
+ */
+
+.window-controls {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  -webkit-app-region: no-drag;
+}
+
+.window-controls__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: var(--titlebar-h);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.window-controls__btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.window-controls__btn:active {
+  background: var(--bg-subtle);
+}
+
+.window-controls__btn--close:hover {
+  background: var(--status-danger);
+  color: #ffffff;
+}
+
+.window-controls__btn--close:active {
+  background: #832525;
+}
+
+/* Flush against the window edge, so an outset ring would be clipped. */
+.window-controls__btn:focus-visible {
+  outline-offset: -3px;
 }
 
 /* ---------- sidebar ---------- */
@@ -12,9 +75,12 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  padding: 20px 16px;
+  /* Top padding clears the title bar strip, putting the brand on the same line
+     as the screen title next to it. */
+  padding: calc(var(--titlebar-h) + 4px) 16px 20px;
   border-right: 1px solid var(--border-subtle);
   background: var(--bg-surface);
+  -webkit-app-region: drag;
 }
 
 .sidebar__brand {
@@ -54,6 +120,14 @@
   color: var(--text-secondary);
   font-size: var(--body-size);
   text-align: left;
+  -webkit-app-region: no-drag;
+}
+
+/* The items sit 2px apart, so the global 2px-outset focus ring would overhang
+   the neighbour below and read as one merged block once that neighbour is
+   hovered. Draw the ring inside the item instead. */
+.sidebar__link:focus-visible {
+  outline-offset: -2px;
 }
 
 .sidebar__link:hover {
@@ -90,6 +164,8 @@
 .screen {
   flex: 1;
   min-width: 0;
+  /* Lets the body shrink to the shell instead of stretching it. */
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -100,8 +176,13 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px 24px;
-  padding: 20px var(--gutter);
+  /* Matches the sidebar: content starts below the title bar strip. */
+  padding: calc(var(--titlebar-h) + 4px) var(--gutter) 20px;
+  /* Strip, a button row, and the bottom padding — so even a header with no
+     actions is tall enough that nothing else reaches the window buttons. */
+  min-height: calc(var(--titlebar-h) + 64px);
   border-bottom: 1px solid var(--border-subtle);
+  -webkit-app-region: drag;
 }
 
 .screen__actions {
@@ -111,7 +192,16 @@
   flex-shrink: 0;
 }
 
+/* Anything clickable inside the drag surface has to opt back out, or the press
+   starts a window move instead of activating the control. */
+.screen__header :is(button, a, input, select, textarea, label) {
+  -webkit-app-region: no-drag;
+}
+
 .screen__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -139,7 +229,7 @@
    so the buttons keep their accessible names via aria-label. */
 @media (max-width: 840px) {
   .sidebar {
-    padding: 20px 8px;
+    padding: calc(var(--titlebar-h) + 4px) 8px 20px;
     align-items: center;
   }
 

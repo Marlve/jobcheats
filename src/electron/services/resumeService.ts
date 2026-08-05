@@ -181,8 +181,14 @@ export const resumeService = {
           described
         )
       }
-      console.error('[resume] extraction failed:', message)
-      return failure('unreadable', `That file could not be read: ${message}`, described)
+      // The parser's own words — "ENOENT", "Corrupted zip", a mammoth stack —
+      // belong in the terminal, not in front of someone holding a resume.
+      console.error('[resume] extraction failed:', err)
+      return failure(
+        'unreadable',
+        'That file could not be read. Try opening it, saving a fresh copy as PDF, DOCX or TXT, and uploading that.',
+        described
+      )
     }
 
     // A scanned PDF opens fine and yields nothing. Accepting it silently would
@@ -203,8 +209,13 @@ export const resumeService = {
     try {
       replaceStoredFile(filePath, filename)
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      return failure('unreadable', `Could not store the resume: ${message}`, described)
+      // Nearly always the file being held open by Word or a PDF viewer.
+      console.error('[resume] could not store the file:', err)
+      return failure(
+        'unreadable',
+        'The resume could not be saved. Close the file if it is open in another app, then try again.',
+        described
+      )
     }
 
     saveResume(filename, mime, text, stats.size)

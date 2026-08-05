@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Sidebar, type Route } from './components/Sidebar';
+import { WindowControls } from './components/WindowControls';
 import { ResumeScreen } from './screens/ResumeScreen';
 import { InboxScreen } from './screens/InboxScreen';
 import { ScanScreen } from './screens/ScanScreen';
@@ -10,6 +11,10 @@ function App() {
   // Insights is the design's default landing tab, and the resume lives inside
   // it until the insights screen itself is designed.
   const [route, setRoute] = useState<Route>('insights');
+
+  // macOS draws its own traffic lights, and a plain browser tab has no window
+  // to control — both leave the strip empty.
+  const ownsWindowButtons = Boolean(window.electron) && window.electron.platform !== 'darwin';
 
   return (
     <div className="app">
@@ -23,6 +28,13 @@ function App() {
         {route === 'scan' && <ScanScreen />}
         {route === 'settings' && <SettingsScreen />}
       </main>
+
+      {/* Must stay last. The drag region is a single shape the OS hit-tests
+          against, and it is built by walking the DOM in order — adding each
+          `drag` rect and cutting out each `no-drag` one. Anything draggable
+          that comes after these buttons is added back on top of them, and the
+          clicks go to the title bar instead of the button. */}
+      {ownsWindowButtons && <WindowControls />}
     </div>
   );
 }

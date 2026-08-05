@@ -1,4 +1,5 @@
 import { IconCross, IconPlus, IconScan } from './Icons';
+import { Tooltip } from './Tooltip';
 import './insights.css';
 
 /**
@@ -77,12 +78,10 @@ export function InsightsPanel({ insights, onRemoveKeyword, onAddKeyword }: Insig
 
         <ul className="dist">
           {distribution.map((band) => (
-            <li
-              key={band.label}
-              className="dist__row"
-              title={`${band.label} (${band.min}–${band.max}): ${band.count} of ${scoredJobs}`}
-            >
-              <span className="dist__label t-caption">{band.label}</span>
+            <li key={band.label} className="dist__row">
+              <Tooltip content={`${band.count} of your ${scoredJobs} scored jobs land in ${band.label} (${band.min}–${band.max}).`}>
+                <span className="dist__label t-caption">{band.label}</span>
+              </Tooltip>
               <span className="dist__range t-caption t-muted">{band.min}–{band.max}</span>
               <span className="dist__track">
                 <span
@@ -105,10 +104,12 @@ export function InsightsPanel({ insights, onRemoveKeyword, onAddKeyword }: Insig
               <p className="t-overline">Pulling their weight</p>
               <div className="kwgroup__items">
                 {strongestKeywords.map(({ keyword, hits }) => (
-                  <span key={keyword} className="chip chip--sm" title={`Matched ${hits} jobs`}>
-                    {keyword}
-                    <span className="chip__count">{hits}</span>
-                  </span>
+                  <Tooltip key={keyword} content={`"${keyword}" was mentioned by ${hits} of the jobs you have scanned.`}>
+                    <span className="chip chip--sm">
+                      {keyword}
+                      <span className="chip__count">{hits}</span>
+                    </span>
+                  </Tooltip>
                 ))}
               </div>
             </div>
@@ -122,16 +123,19 @@ export function InsightsPanel({ insights, onRemoveKeyword, onAddKeyword }: Insig
               </p>
               <div className="kwgroup__items">
                 {deadKeywords.map(({ keyword, hits }) => (
-                  <button
+                  <Tooltip
                     key={keyword}
-                    type="button"
-                    className="chip chip--sm chip--action"
-                    title={`${hits === 0 ? 'Never matched' : `Matched only ${hits}`} — remove`}
-                    onClick={() => onRemoveKeyword(keyword)}
+                    content={`${hits === 0 ? 'No job you have scanned mentions' : `Only ${hits} job${hits === 1 ? '' : 's'} mention`} "${keyword}". Click to remove it.`}
                   >
-                    {keyword}
-                    <IconCross size={12} />
-                  </button>
+                    <button
+                      type="button"
+                      className="chip chip--sm chip--action"
+                      onClick={() => onRemoveKeyword(keyword)}
+                    >
+                      {keyword}
+                      <IconCross size={12} />
+                    </button>
+                  </Tooltip>
                 ))}
               </div>
             </div>
@@ -146,17 +150,20 @@ export function InsightsPanel({ insights, onRemoveKeyword, onAddKeyword }: Insig
               </p>
               <div className="kwgroup__items">
                 {skillGaps.map(({ keyword, hits }) => (
-                  <button
+                  <Tooltip
                     key={keyword}
-                    type="button"
-                    className="chip chip--sm chip--action"
-                    title={`Appears in ${hits} jobs — add to your keywords`}
-                    onClick={() => onAddKeyword(keyword)}
+                    content={`${hits} of the jobs you have scanned ask for "${keyword}" and your resume never says it. Click to add it as a keyword.`}
                   >
-                    <IconPlus size={12} />
-                    {keyword}
-                    <span className="chip__count">{hits}</span>
-                  </button>
+                    <button
+                      type="button"
+                      className="chip chip--sm chip--action"
+                      onClick={() => onAddKeyword(keyword)}
+                    >
+                      <IconPlus size={12} />
+                      {keyword}
+                      <span className="chip__count">{hits}</span>
+                    </button>
+                  </Tooltip>
                 ))}
               </div>
             </div>

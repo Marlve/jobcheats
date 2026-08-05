@@ -1,6 +1,29 @@
 const electron = require('electron');
 
 electron.contextBridge.exposeInMainWorld("electron", {
+  // ---- window ----
+
+  /**
+   * The window's title bar is drawn by the app, so the renderer has to know
+   * which platform's controls it is leaving room for: buttons top-right on
+   * Windows and Linux, traffic lights top-left on macOS.
+   */
+  platform: process.platform,
+
+  minimizeWindow: () => electron.ipcRenderer.invoke("minimizeWindow"),
+
+  toggleMaximizeWindow: () => electron.ipcRenderer.invoke("toggleMaximizeWindow"),
+
+  closeWindow: () => electron.ipcRenderer.invoke("closeWindow"),
+
+  isWindowMaximized: () => electron.ipcRenderer.invoke("isWindowMaximized"),
+
+  subscribeWindowMaximized: (callback: (maximized: boolean) => void) => {
+    const listener = (_: unknown, maximized: boolean) => callback(maximized)
+    electron.ipcRenderer.on("window:maximized", listener)
+    return () => electron.ipcRenderer.off("window:maximized", listener)
+  },
+
   // ---- scraping ----
   scrapeAll: (params: SearchParams) => electron.ipcRenderer.invoke("scrapeAll", params),
 

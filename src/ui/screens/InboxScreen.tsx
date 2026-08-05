@@ -10,6 +10,8 @@ import {
   IconExternal,
   IconSearch,
 } from '../components/Icons';
+import { Select } from '../components/Select';
+import { Tooltip } from '../components/Tooltip';
 import { daysUntil, formatDate } from '../format';
 import './inbox.css';
 
@@ -118,9 +120,11 @@ export function InboxScreen({ view }: { view: JobListView }) {
 
         {stats && (
           <div className="screen__actions">
-            <span className="count-chip" title="Jobs in this view">
-              {view === 'inbox' ? stats.inboxCount : stats.archiveCount} jobs
-            </span>
+            <Tooltip content={view === 'inbox' ? 'Jobs waiting in your inbox.' : 'Jobs you saved or applied to.'}>
+              <span className="count-chip">
+                {view === 'inbox' ? stats.inboxCount : stats.archiveCount} jobs
+              </span>
+            </Tooltip>
           </div>
         )}
       </header>
@@ -139,23 +143,19 @@ export function InboxScreen({ view }: { view: JobListView }) {
             />
           </span>
 
-          <select
-            className="select"
+          <Select
             value={source}
-            onChange={(event) => setSource(event.target.value as JobSource | 'all')}
-            aria-label="Job board"
-          >
-            {SOURCES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-          </select>
+            options={SOURCES}
+            onChange={setSource}
+            label="Job board"
+          />
 
-          <select
-            className="select"
+          <Select
             value={minScore}
-            onChange={(event) => setMinScore(Number(event.target.value))}
-            aria-label="Minimum match score"
-          >
-            {MIN_SCORES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-          </select>
+            options={MIN_SCORES}
+            onChange={setMinScore}
+            label="Minimum match score"
+          />
 
           <div className="segmented" role="group" aria-label="Sort by">
             {SORTS.map((item) => (
@@ -262,7 +262,7 @@ function JobCard({
       <div className="job__facts t-caption t-muted">
         <span className="job__source">{SOURCE_LABEL[job.source]}</span>
         {job.salary && <span>{job.salary}</span>}
-        {job.postedAt && <span>Posted {job.postedAt}</span>}
+        {job.postedAt && <span>Posted {formatDate(job.postedAt)}</span>}
         <span>Seen {formatDate(job.firstSeenAt)}</span>
       </div>
 

@@ -1,3 +1,5 @@
+import { Tooltip } from './Tooltip';
+
 /**
  * Job status. Saved and applied are archived — they are exempt from the 7-day
  * retention sweep, so the pill doubles as "this one is kept".
@@ -25,8 +27,8 @@ export const SOURCE_LABEL: Record<JobSource, string> = {
 
 export function StatusPill({ status }: { status: JobStatus }) {
   return (
-    <span className={`pill pill--${status}`} title={TITLE[status]}>
-      {LABEL[status]}
-    </span>
+    <Tooltip content={TITLE[status]}>
+      <span className={`pill pill--${status}`}>{LABEL[status]}</span>
+    </Tooltip>
   );
 }

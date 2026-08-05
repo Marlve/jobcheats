@@ -7,6 +7,25 @@ export class ScrapeCancelledError extends Error {
   }
 }
 
+/**
+ * A failure with two audiences.
+ *
+ * `userMessage` is what the scan screen shows: plain language, no selectors, no
+ * URLs, and where possible what to do about it. `detail` is what the terminal
+ * gets — the selector, the URL, the timeout that elapsed. Neither is much use
+ * in the other's place, and collapsing them into one string is how a job board
+ * ends up telling someone about a componentkey.
+ */
+export class ScrapeError extends Error {
+  readonly userMessage: string
+
+  constructor(userMessage: string, detail?: string) {
+    super(detail ? `${userMessage} [${detail}]` : userMessage)
+    this.name = 'ScrapeError'
+    this.userMessage = userMessage
+  }
+}
+
 /** Cooperative cancellation — checked between jobs and between pages. */
 export class CancellationToken {
   private cancelled = false

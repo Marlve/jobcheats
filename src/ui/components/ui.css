@@ -547,3 +547,190 @@
   color: var(--status-warning);
   margin-top: 1px;
 }
+
+/* ---------- tooltip ---------- */
+
+/* A real box, not `display: contents` — the tooltip measures this element to
+   decide where to sit, and a box-less element has no rectangle to measure. */
+.tooltip__anchor {
+  display: inline-flex;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 60;
+  /* Hidden for the frame between rendering and being measured. */
+  visibility: hidden;
+  max-width: 260px;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  background: var(--accent-base);
+  color: var(--accent-on);
+  font-size: var(--caption-size);
+  line-height: 16px;
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 6px 20px rgb(20 19 22 / 18%);
+  /* The bubble sits over its own anchor; letting it take the pointer would make
+     the anchor flicker between hovered and not. */
+  pointer-events: none;
+}
+
+.tooltip--placed {
+  visibility: visible;
+  animation: tooltip-in 110ms ease-out;
+}
+
+@keyframes tooltip-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.tooltip--below {
+  animation-name: tooltip-in-below;
+}
+
+@keyframes tooltip-in-below {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------- select ---------- */
+
+.select-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--body-size);
+  white-space: nowrap;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.select-btn:hover {
+  border-color: var(--border-strong);
+}
+
+.select-btn[aria-expanded='true'] {
+  border-color: var(--border-strong);
+  background: var(--bg-inset);
+}
+
+.select-btn svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+/* Matches the scan screen's filter chips. */
+.select-btn--pill {
+  height: 34px;
+  padding: 0 8px 0 14px;
+  border-radius: var(--radius-pill);
+  font-size: var(--label-size);
+}
+
+.select-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+.select-list {
+  position: fixed;
+  z-index: 51;
+  visibility: hidden;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  box-shadow: 0 10px 32px rgb(20 19 22 / 14%), 0 2px 6px rgb(20 19 22 / 6%);
+}
+
+.select-list--placed {
+  visibility: visible;
+  animation: select-in 110ms ease-out;
+}
+
+@keyframes select-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.select-list:focus-visible {
+  outline: none;
+}
+
+.select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--body-size);
+  cursor: pointer;
+}
+
+/* One highlight, driven by the keyboard cursor — hovering moves that cursor, so
+   the mouse and the arrow keys can never disagree about which row is next. */
+.select-option--active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.select-option--selected {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.select-option svg {
+  flex-shrink: 0;
+}
+
+/* ---------- keyword weight ---------- */
+
+/* Three dots, filled to the weight: how often the term appears in the resume,
+   which is also how hard it pulls on a match score. The exact number is in the
+   chip's tooltip — the dots are for comparing keywords at a glance. */
+.chip__weight {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 2px;
+}
+
+.chip__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+}
+
+.chip__dot--on {
+  background: var(--text-secondary);
+}
+
+.chip--manual .chip__dot {
+  background: rgb(20 19 22 / 12%);
+}
+
+.chip--manual .chip__dot--on {
+  background: var(--status-warning);
+}
+
+.chip--disabled .chip__dot,
+.chip--disabled .chip__dot--on {
+  background: var(--border-strong);
+}

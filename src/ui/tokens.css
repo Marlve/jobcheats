@@ -94,6 +94,11 @@
 
   --sidebar-width: 244px;
 
+  /* The app draws its own title bar, so the top of the window is reserved for
+     it: the window buttons on Windows and Linux, the traffic lights on macOS.
+     Both are hairline glyphs at the standard caption height. */
+  --titlebar-h: 32px;
+
   /* Desktop app, freely resizable — content fills the window rather than
      sitting in a fixed column. Prose blocks keep their own max-widths so long
      lines stay readable on a wide monitor. */
