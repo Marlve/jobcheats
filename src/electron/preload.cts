@@ -37,6 +37,28 @@ electron.contextBridge.exposeInMainWorld("electron", {
 
   listRuns: (limit?: number) => electron.ipcRenderer.invoke("listRuns", limit),
 
+  // ---- job boards ----
+  listBoards: () => electron.ipcRenderer.invoke("listBoards"),
+
+  setBoardEnabled: (source: JobSource, enabled: boolean) =>
+    electron.ipcRenderer.invoke("setBoardEnabled", source, enabled),
+
+  // ---- updates ----
+  getUpdateStatus: () => electron.ipcRenderer.invoke("getUpdateStatus"),
+
+  checkForUpdates: () => electron.ipcRenderer.invoke("checkForUpdates"),
+
+  dismissUpdate: (version: string) => electron.ipcRenderer.invoke("dismissUpdate", version),
+
+  setUpdateAutoCheck: (enabled: boolean) =>
+    electron.ipcRenderer.invoke("setUpdateAutoCheck", enabled),
+
+  subscribeUpdateStatus: (callback: (status: UpdateStatus) => void) => {
+    const listener = (_: unknown, status: UpdateStatus) => callback(status)
+    electron.ipcRenderer.on("update:status", listener)
+    return () => electron.ipcRenderer.off("update:status", listener)
+  },
+
   // ---- jobs ----
   listJobs: (options?: ListJobsOptions) => electron.ipcRenderer.invoke("listJobs", options),
 

@@ -8,6 +8,24 @@
 
 const RELATIVE_DATE = /(\d+)\s*(minute|min|hour|hr|day|week|month)s?\s+ago/i
 
+/**
+ * The abbreviated form: "33m ago", "8h ago", "21d ago", "30d+ ago".
+ *
+ * Seek writes every card date this way, so without this every Seek job would
+ * come back with no posted date at all. Tried only after the spelled-out form,
+ * which keeps "3 minutes ago" reading as minutes rather than stopping at the m.
+ * The trailing + on "30d+ ago" means "at least", and is treated as exactly 30 —
+ * the posting is older than the retention window either way.
+ */
+const COMPACT_RELATIVE_DATE = /(\d+)\s*([mhdw])\+?\s+ago/i
+
+const COMPACT_UNIT_MS: Record<string, number> = {
+  m: 60_000,
+  h: 3_600_000,
+  d: 86_400_000,
+  w: 604_800_000,
+}
+
 const UNIT_MS: Record<string, number> = {
   minute: 60_000,
   min: 60_000,
@@ -36,13 +54,24 @@ export function parsePostedAt(text: string, now: Date = new Date()): string | nu
   }
 
   const match = text.match(RELATIVE_DATE)
-  if (!match) return null
+  if (match) {
+    const amount = Number(match[1])
+    const unit = UNIT_MS[match[2].toLowerCase()]
+    if (!Number.isFinite(amount) || !unit) return null
 
-  const amount = Number(match[1])
-  const unit = UNIT_MS[match[2].toLowerCase()]
-  if (!Number.isFinite(amount) || !unit) return null
+    return new Date(now.getTime() - amount * unit).toISOString()
+  }
 
-  return new Date(now.getTime() - amount * unit).toISOString()
+  const compact = text.match(COMPACT_RELATIVE_DATE)
+  if (compact) {
+    const amount = Number(compact[1])
+    const unit = COMPACT_UNIT_MS[compact[2].toLowerCase()]
+    if (!Number.isFinite(amount) || !unit) return null
+
+    return new Date(now.getTime() - amount * unit).toISOString()
+  }
+
+  return null
 }
 
 const CURRENCY = String.raw`(?:RM|MYR|SGD|AUD|USD|IDR|PHP|THB|VND|S\$|A\$|US\$|\$|£|€)`

@@ -15,6 +15,23 @@ test('relative dates become absolute timestamps', () => {
   expect(parsePostedAt('1 week ago', NOW)).toBe('2026-07-28T12:00:00.000Z');
 });
 
+test('reads the abbreviated form Seek writes on its cards', () => {
+  expect(parsePostedAt('33m ago', NOW)).toBe('2026-08-04T11:27:00.000Z');
+  expect(parsePostedAt('8h ago', NOW)).toBe('2026-08-04T04:00:00.000Z');
+  expect(parsePostedAt('21d ago', NOW)).toBe('2026-07-14T12:00:00.000Z');
+  // "at least 30 days"; treated as exactly 30, which is past retention either way.
+  expect(parsePostedAt('30d+ ago', NOW)).toBe('2026-07-05T12:00:00.000Z');
+  // The card often carries the date alongside other fields.
+  expect(parsePostedAt('2d ago • $90,000 • Melbourne VIC', NOW)).toBe('2026-08-02T12:00:00.000Z');
+});
+
+test('the abbreviated form does not shadow the spelled-out one', () => {
+  // "3 minutes ago" must not stop at the m and be read as 3 months.
+  expect(parsePostedAt('3 minutes ago', NOW)).toBe('2026-08-04T11:57:00.000Z');
+  // Promoted listings say this instead of a date, and it is not one.
+  expect(parsePostedAt('Featured', NOW)).toBeNull();
+});
+
 test('handles the non-numeric phrasings', () => {
   expect(parsePostedAt('Just posted', NOW)).toBe(NOW.toISOString());
   expect(parsePostedAt('Yesterday', NOW)).toBe('2026-08-03T12:00:00.000Z');

@@ -1,4 +1,4 @@
-/* Shared primitives from the JobMatch design system. */
+/* Shared primitives from the JobCheats design system. */
 
 /* ---------- button ---------- */
 
@@ -733,4 +733,68 @@
 .chip--disabled .chip__dot,
 .chip--disabled .chip__dot--on {
   background: var(--border-strong);
+}
+
+/* ---------- toggle ---------- */
+
+/* On is the near-black accent rather than a hue: the palette has one accent and
+   it is not a colour, so "on" reads as filled against "off" being outlined. */
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-subtle);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.switch--on {
+  background: var(--accent-base);
+  border-color: var(--accent-base);
+}
+
+.switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* A locked switch that is ON must still read as on. Fading it washes the fill
+   toward the empty track's grey, which leaves the one distinction the control
+   exists to make — on versus off — resting on the knob's position alone. It
+   steps back a shade instead, which reads as "not yours to change" without
+   giving up the state. */
+.switch--on:disabled {
+  opacity: 1;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.switch--on:disabled .switch__knob {
+  background: var(--accent-dim);
+  box-shadow: none;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent-base);
+  outline-offset: 2px;
+}
+
+.switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: 0 1px 2px rgb(20 19 22 / 20%);
+  transition: transform 120ms ease;
+}
+
+.switch--on .switch__knob {
+  transform: translateX(16px);
 }

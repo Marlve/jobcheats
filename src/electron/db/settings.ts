@@ -1,0 +1,126 @@
+import { db } from "./schema.js"
+import { boardEnabledFromStored, configuredSources, isLastEnabledBoard } from "../config.js"
+
+/**
+ * Stored preferences.
+ *
+ * Everything else the Settings screen shows is a product rule out of config.ts,
+ * reported rather than offered. This file is for the few things that really are
+ * yours to choose, and right now that is which job boards a scan runs.
+ */
+
+type SettingRecord = { value: string }
+
+function readSetting(key: string): string | null {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
+    | SettingRecord
+    | undefined
+
+  return row?.value ?? null
+}
+
+function writeSetting(key: string, value: string): void {
+  db.prepare(`
+    INSERT INTO settings (key, value) VALUES (?, ?)
+    ON CONFLICT (key) DO UPDATE SET value = excluded.value
+  `).run(key, value)
+}
+
+// ---------- job boards ----------
+
+const boardKey = (source: JobSource) => `board.${source}.enabled`
+
+export function isBoardEnabled(source: JobSource): boolean {
+  return boardEnabledFromStored(source, readSetting(boardKey(source)))
+}
+
+export function listBoardPreferences(): BoardPreference[] {
+  return configuredSources().map(source => ({ source, enabled: isBoardEnabled(source) }))
+}
+
+/**
+ * Turns a board on or off, and returns where every board ended up.
+ *
+ * The whole list rather than a success flag, because the request can be
+ * declined: turning off the last enabled board is refused, and that board comes
+ * back still on. Callers apply what they are given instead of assuming the
+ * change took.
+ *
+ * The refusal lives here and not only in the UI because this is what the
+ * scanner reads. A renderer that got the guard wrong should not be able to
+ * leave the scanner with nothing to run.
+ */
+export function setBoardEnabled(source: JobSource, enabled: boolean): BoardPreference[] {
+  const stillOn = configuredSources().filter(other => isBoardEnabled(other))
+
+  if (enabled || !isLastEnabledBoard(source, stillOn)) {
+    writeSetting(boardKey(source), enabled ? '1' : '0')
+  }
+
+  return listBoardPreferences()
+}
+
+// ---------- updates ----------
+
+const UPDATE_CACHE_KEY = 'update.lastCheck'
+const UPDATE_DISMISSED_KEY = 'update.dismissedVersion'
+const UPDATE_AUTO_CHECK_KEY = 'update.autoCheck'
+
+/** What the last successful check found, so a launch can answer without asking. */
+export interface UpdateCache {
+  latestVersion: string
+  releaseUrl: string
+  releaseNotes: string
+  checkedAt: string
+}
+
+export function readUpdateCache(): UpdateCache | null {
+  const raw = readSetting(UPDATE_CACHE_KEY)
+  if (!raw) return null
+
+  // The row is written by this app, but it is still parsed defensively — a
+  // half-written or hand-edited row should cost a fresh check, not a crash on
+  // launch before the window is even up.
+  try {
+    const parsed = JSON.parse(raw) as Partial<UpdateCache>
+    if (typeof parsed.latestVersion !== 'string' || typeof parsed.checkedAt !== 'string') {
+      return null
+    }
+    return {
+      latestVersion: parsed.latestVersion,
+      releaseUrl: typeof parsed.releaseUrl === 'string' ? parsed.releaseUrl : '',
+      releaseNotes: typeof parsed.releaseNotes === 'string' ? parsed.releaseNotes : '',
+      checkedAt: parsed.checkedAt,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function writeUpdateCache(cache: UpdateCache): void {
+  writeSetting(UPDATE_CACHE_KEY, JSON.stringify(cache))
+}
+
+/** The version whose notice was waved away. Null once a newer one appears. */
+export function readDismissedVersion(): string | null {
+  return readSetting(UPDATE_DISMISSED_KEY)
+}
+
+export function writeDismissedVersion(version: string): void {
+  writeSetting(UPDATE_DISMISSED_KEY, version)
+}
+
+/**
+ * Whether the app checks by itself on launch.
+ *
+ * On unless turned off. The app tells people it has no telemetry and sends
+ * nothing anywhere, so the one request it does make had better be one they can
+ * stop — see the About section, which says what the check sends.
+ */
+export function isAutoCheckEnabled(): boolean {
+  return readSetting(UPDATE_AUTO_CHECK_KEY) !== '0'
+}
+
+export function setAutoCheckEnabled(enabled: boolean): void {
+  writeSetting(UPDATE_AUTO_CHECK_KEY, enabled ? '1' : '0')
+}

@@ -26,6 +26,34 @@ interface Window {
 
     listRuns: (limit?: number) => Promise<ScrapeRun[]>;
 
+    // ---- job boards ----
+
+    /** Every board the app can run, with whether a scan will use it. */
+    listBoards: () => Promise<BoardPreference[]>;
+
+    /**
+     * Turns a board on or off. Resolves to where every board ended up — the
+     * last enabled board cannot be turned off, so check the result rather than
+     * assuming the change took.
+     */
+    setBoardEnabled: (source: JobSource, enabled: boolean) => Promise<BoardPreference[]>;
+
+    // ---- updates ----
+
+    /** The stored picture. Never hits the network, so call it freely. */
+    getUpdateStatus: () => Promise<UpdateStatus>;
+
+    /** Asks GitHub now, ignoring the interval the launch check obeys. */
+    checkForUpdates: () => Promise<UpdateStatus>;
+
+    /** Puts the notice down for this version; a newer one raises it again. */
+    dismissUpdate: (version: string) => Promise<UpdateStatus>;
+
+    setUpdateAutoCheck: (enabled: boolean) => Promise<UpdateStatus>;
+
+    /** Fires when the launch check lands after the renderer has already asked. */
+    subscribeUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
+
     // ---- jobs ----
     listJobs: (options?: ListJobsOptions) => Promise<JobRow[]>;
 
@@ -72,6 +100,43 @@ interface Window {
 // ---------- jobs ----------
 
 type JobSource = 'linkedin' | 'seek'
+
+/** A board and whether a scan will run it. */
+interface BoardPreference {
+  source: JobSource;
+  enabled: boolean;
+}
+
+// ---------- updates ----------
+
+/**
+ * How the last update check went.
+ *
+ * 'unknown' means no check has ever completed — a fresh install that has not
+ * been online yet. It is kept apart from 'failed' so the About section can say
+ * "not checked yet" rather than implying something went wrong.
+ */
+type UpdateState = 'unknown' | 'current' | 'available' | 'failed';
+
+interface UpdateStatus {
+  /** The version of the running app. */
+  currentVersion: string;
+  /** Newest published version, or null if no check has ever succeeded. */
+  latestVersion: string | null;
+  /** Release page for the newest version. Always safe to open. */
+  releaseUrl: string;
+  /** Release notes, trimmed to a summary. Empty when there are none. */
+  releaseNotes: string;
+  state: UpdateState;
+  /** When the last check completed, successful or not. */
+  checkedAt: string | null;
+  /** Why the last check failed, in plain words. Null unless state is 'failed'. */
+  error: string | null;
+  /** Whether the app checks by itself on launch. */
+  autoCheck: boolean;
+  /** The version whose notice was dismissed, so the banner stays down. */
+  dismissedVersion: string | null;
+}
 
 type JobStatus = 'new' | 'saved' | 'applied' | 'rejected'
 

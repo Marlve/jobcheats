@@ -3,6 +3,8 @@
  * SQL bindings, so every field is checked before use.
  */
 
+import { isVersion } from "../services/version.js"
+
 const JOB_TYPES: JobType[] = ['internship', 'full-time', 'part-time']
 const DATES_POSTED: DatePosted[] = ['24h', 'week', 'month']
 const JOB_SOURCES: JobSource[] = ['linkedin', 'seek']
@@ -122,6 +124,10 @@ export function validateJobStatus(raw: unknown): JobStatus {
   return asOneOf(raw, JOB_STATUSES, 'status')
 }
 
+export function validateJobSource(raw: unknown): JobSource {
+  return asOneOf(raw, JOB_SOURCES, 'source')
+}
+
 export function validateId(raw: unknown): number {
   return asPositiveInt(raw, 'id', Number.MAX_SAFE_INTEGER)
 }
@@ -151,6 +157,20 @@ export function validateWeight(raw: unknown, fallback = 1): number {
 export function validateBoolean(raw: unknown, label: string): boolean {
   if (typeof raw !== 'boolean') throw new ValidationError(`${label} must be a boolean`)
   return raw
+}
+
+/**
+ * A version string on its way to being stored as "dismissed".
+ *
+ * Checked against the same parser the comparison uses, so anything stored is
+ * something that can later be compared — a dismissal of an unreadable string
+ * would sit in the table silencing nothing.
+ */
+export function validateVersion(raw: unknown): string {
+  if (typeof raw !== 'string' || !isVersion(raw)) {
+    throw new ValidationError('version must be a version string like 1.2.0')
+  }
+  return raw.trim()
 }
 
 export function validateNotes(raw: unknown): string {
