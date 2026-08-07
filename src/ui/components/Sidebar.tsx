@@ -28,7 +28,7 @@ export function Sidebar({
     <nav className="sidebar">
       <div className="sidebar__brand">
         <span className="sidebar__mark" aria-hidden="true" />
-        <span className="t-title sidebar__label">JobMatch</span>
+        <span className="t-title sidebar__label">JobCheats</span>
       </div>
 
       <ul className="sidebar__nav">

@@ -1,8 +1,8 @@
 {
   "name": "jobcheats",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.",
+  "description": "Scans LinkedIn and Seek, scores every job against your resume, and keeps it all on your machine.",
   "homepage": "https://github.com/Marlve/jobcheats#readme",
   "bugs": {
     "url": "https://github.com/Marlve/jobcheats/issues"
@@ -12,7 +12,7 @@
     "url": "git+https://github.com/Marlve/jobcheats.git"
   },
   "license": "ISC",
-  "author": "",
+  "author": "Derich Marlve",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -33,8 +33,7 @@
     "cross-env": "^10.1.0",
     "mammoth": "^1.12.0",
     "pdfjs-dist": "^6.2.108",
-    "playwright-extra": "^4.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "playwright": "1.61.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

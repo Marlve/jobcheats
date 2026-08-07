@@ -37,7 +37,7 @@ const RECOVERY: Record<UploadResumeFailure, { title: string; steps: string[] }> 
     steps: [
       'Open the original in Word, Google Docs or Pages — the app you actually wrote it in.',
       'Export straight to PDF from there (do not scan or photograph a printout).',
-      'Or upload that source file as DOCX, which JobMatch reads directly.',
+      'Or upload that source file as DOCX, which JobCheats reads directly.',
       'If a scan is all you have, run it through OCR first, then upload the OCR output.',
     ],
   },
@@ -69,7 +69,7 @@ const RECOVERY: Record<UploadResumeFailure, { title: string; steps: string[] }> 
 
 const ERROR_HEADLINE: Record<UploadResumeFailure, (file?: RejectedFile) => string> = {
   'no-text-layer': () => 'This PDF has no text layer',
-  'unsupported-type': (file) => `JobMatch can't read .${file?.extension ?? 'this'} files`,
+  'unsupported-type': (file) => `JobCheats can't read .${file?.extension ?? 'this'} files`,
   'too-large': () => 'That file is too large',
   unreadable: () => "That file couldn't be read",
 };
@@ -247,7 +247,7 @@ export function ResumeScreen() {
     if (phase.kind === 'ready') {
       return { title: 'Resume', subtitle: 'One resume, ever — replacing deletes the old file' };
     }
-    return { title: 'Welcome to JobMatch', subtitle: 'Three steps to your first daily match list' };
+    return { title: 'Welcome to JobCheats', subtitle: 'Three steps to your first daily match list' };
   })();
 
   return (
@@ -280,7 +280,7 @@ export function ResumeScreen() {
             <div className="intro">
               <h2 className="t-display">Start with your resume</h2>
               <p className="t-body t-secondary intro__copy">
-                Everything else follows from it. JobMatch reads your resume once, pulls out the
+                Everything else follows from it. JobCheats reads your resume once, pulls out the
                 keywords that describe your career, and scores every job it finds against them.
               </p>
             </div>

@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../components/Button';
 import { IconDocument, IconLock, IconWarning } from '../components/Icons';
+import { SOURCE_LABEL } from '../components/StatusPill';
+import { Toggle } from '../components/Toggle';
 import { daysUntil, formatBytes, formatDateTime } from '../format';
 import './settings.css';
 
 /**
  * The screen for everything that is about the app rather than about a job:
- * how much is stored, when it gets swept, and how to get your resume back off
- * this machine.
+ * which boards it reads, how much it stores, when that gets swept, and how to
+ * get your resume back off this machine.
  *
- * Nothing here is a preference. Retention and the per-scan cap are product
- * decisions that several layers of the main process agree on (config.ts), so
- * they are reported as facts rather than offered as settings — a slider that
- * silently disagreed with the scraper would be worse than no slider.
+ * Only the board switches are a preference. Retention and the per-scan cap are
+ * product decisions that several layers of the main process agree on
+ * (config.ts), so they are reported as facts rather than offered as settings —
+ * a slider that silently disagreed with the scraper would be worse than no
+ * slider.
  */
 const DATE_POSTED_LABEL: Record<DatePosted, string> = {
   '24h': 'the last 24 hours',
@@ -20,10 +23,41 @@ const DATE_POSTED_LABEL: Record<DatePosted, string> = {
   month: 'the last month',
 };
 
+/**
+ * The one line under the version number.
+ *
+ * "Never checked" is kept apart from "the check failed" — a fresh install that
+ * has not been online yet has nothing wrong with it, and saying so would send
+ * someone looking for a problem they do not have.
+ */
+function describeUpdate(update: UpdateStatus): string {
+  const when = update.checkedAt ? ` · checked ${formatDateTime(update.checkedAt)}` : '';
+
+  switch (update.state) {
+    case 'available':
+      return `Version ${update.latestVersion} is available${when}`;
+    case 'current':
+      return `Up to date${when}`;
+    case 'failed':
+      return update.error ?? 'The last check did not go through.';
+    default:
+      return update.autoCheck ? 'Not checked yet' : 'Checking on launch is turned off';
+  }
+}
+
+/** What turning each board on actually gets you, and what it costs. */
+const BOARD_NOTE: Record<JobSource, string> = {
+  linkedin: 'Signs in as you, in a browser window this app drives. The session stays on this device.',
+  seek: 'No sign-in needed. Newly added and not yet run against the live site, so expect rough edges.',
+};
+
 export function SettingsScreen() {
   const [stats, setStats] = useState<DbStats | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [resume, setResume] = useState<ResumeMeta | null>(null);
+  const [boards, setBoards] = useState<BoardPreference[]>([]);
+  const [update, setUpdate] = useState<UpdateStatus | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [keywordCount, setKeywordCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -43,14 +77,40 @@ export function SettingsScreen() {
   }, []);
 
   async function refresh() {
-    const [dbStats, meta, keywords] = await Promise.all([
+    const [dbStats, meta, keywords, boardList, updateStatus] = await Promise.all([
       window.electron.getDbStats(),
       window.electron.getResume(),
       window.electron.listKeywords(),
+      window.electron.listBoards(),
+      // The stored answer, not a fresh request — opening Settings should not
+      // spend one of the hourly checks GitHub allows.
+      window.electron.getUpdateStatus(),
     ]);
     setStats(dbStats);
     setResume(meta);
     setKeywordCount(keywords.length);
+    setBoards(boardList);
+    setUpdate(updateStatus);
+  }
+
+  async function checkForUpdates() {
+    setCheckingUpdate(true);
+    setUpdate(await window.electron.checkForUpdates());
+    setCheckingUpdate(false);
+  }
+
+  async function toggleAutoCheck(enabled: boolean) {
+    setUpdate(await window.electron.setUpdateAutoCheck(enabled));
+  }
+
+  /**
+   * The main process decides the outcome, not the click. It refuses to turn off
+   * the last enabled board, so the list it returns is applied as-is rather than
+   * the state being flipped optimistically and then corrected.
+   */
+  async function toggleBoard(source: JobSource, enabled: boolean) {
+    setBoards(await window.electron.setBoardEnabled(source, enabled));
+    setNotice(null);
   }
 
   /**
@@ -80,13 +140,14 @@ export function SettingsScreen() {
   }
 
   const expiresIn = daysUntil(stats?.nextExpiryAt ?? null);
+  const enabledBoardCount = boards.filter((board) => board.enabled).length;
 
   return (
     <>
       <header className="screen__header">
         <div>
           <h1 className="t-title">Settings</h1>
-          <p className="t-body t-secondary">Retention, scan limits and database</p>
+          <p className="t-body t-secondary">Job boards, retention and storage</p>
         </div>
       </header>
 
@@ -96,6 +157,38 @@ export function SettingsScreen() {
         {!loading && stats && config && (
           <>
             {notice && <p className="t-body t-secondary notice" role="status">{notice}</p>}
+
+            {/* ---------- job boards ---------- */}
+            <section className="card">
+              <h2 className="t-body settings__title">Job boards</h2>
+              <p className="t-body t-secondary settings__copy">
+                A scan reads every board left on, one after another in a single browser session.
+                Turning one off takes it out of future scans — jobs it already found stay in your
+                inbox until they expire.
+              </p>
+
+              <ul className="board-list">
+                {boards.map((board) => {
+                  const isLastOn = board.enabled && enabledBoardCount === 1;
+
+                  return (
+                    <li key={board.source} className="board">
+                      <div className="board__main">
+                        <p className="t-label">{SOURCE_LABEL[board.source]}</p>
+                        <p className="t-caption t-muted">{BOARD_NOTE[board.source]}</p>
+                      </div>
+                      <Toggle
+                        checked={board.enabled}
+                        label={`Scan ${SOURCE_LABEL[board.source]}`}
+                        disabled={isLastOn}
+                        disabledReason="The only board left on. Turn another one on first — a scan with no boards would do nothing."
+                        onChange={(next) => toggleBoard(board.source, next)}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
 
             {/* ---------- storage ---------- */}
             <section className="card">
@@ -206,6 +299,46 @@ export function SettingsScreen() {
                 no account and no telemetry.
               </p>
             </section>
+
+            {/* ---------- about ---------- */}
+            {update && (
+              <section className="card">
+                <h2 className="t-body settings__title">About</h2>
+
+                <div className="settings__version">
+                  <div>
+                    <p className="t-label">JobCheats {update.currentVersion}</p>
+                    <p className="t-caption t-muted">{describeUpdate(update)}</p>
+                  </div>
+                  <Button size="sm" disabled={checkingUpdate} onClick={checkForUpdates}>
+                    {checkingUpdate ? 'Checking…' : 'Check for updates'}
+                  </Button>
+                </div>
+
+                {update.state === 'available' && update.latestVersion && (
+                  <p className="t-caption settings__copy">
+                    <a href={update.releaseUrl} target="_blank" rel="noreferrer">
+                      Download {update.latestVersion} from the releases page
+                    </a>
+                    {' — '}the app does not install updates by itself.
+                  </p>
+                )}
+
+                <div className="settings__row">
+                  <p className="t-caption t-muted">
+                    Check for a new version on launch. The check is a plain request to GitHub for
+                    the newest release number — it sends nothing about you, your resume or your
+                    jobs, though GitHub does see your IP address, the same as visiting the page in
+                    a browser would.
+                  </p>
+                  <Toggle
+                    checked={update.autoCheck}
+                    label="Check for updates on launch"
+                    onChange={toggleAutoCheck}
+                  />
+                </div>
+              </section>
+            )}
           </>
         )}
       </div>

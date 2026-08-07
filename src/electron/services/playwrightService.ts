@@ -1,4 +1,4 @@
-import { BrowserContext, chromium, Page } from "playwright"
+ import { BrowserContext, chromium, Page } from "playwright"
 import path from 'path'
 import { app, BrowserWindow } from "electron"
 
@@ -75,6 +75,63 @@ function reclaimForeground() {
   window?.focus()
 }
 
+// ---------- launching ----------
+
+/**
+ * The browsers a scan will drive, in the order they are tried.
+ *
+ * Both are Chromium, and both are ones the machine already has. Playwright
+ * normally supplies its own Chromium build, but that is a 400 MB download it
+ * expects `npx playwright install` to have fetched — there is no such step for
+ * someone who downloaded a packaged app, so shipping it would mean quadrupling
+ * the installer to carry a second browser the machine almost certainly already
+ * has a copy of.
+ *
+ * Edge is the fallback rather than a second choice worth having: it is part of
+ * Windows and cannot practically be removed, so between the two there is
+ * somewhere to land on essentially any Windows machine. Which browser someone
+ * *browses* with does not come into it — a scan runs in its own profile under
+ * userData and never touches their windows, history or signed-in sessions. A
+ * Firefox user is fine; their Edge is still sitting there unused.
+ *
+ * Firefox itself is not an option here even if someone would prefer it:
+ * Playwright can only be pointed at an installed browser when that browser is
+ * Chromium-based, and its Firefox support needs a patched build of its own —
+ * which puts us straight back to the download this exists to avoid.
+ */
+const BROWSER_CHANNELS = ['chrome', 'msedge'] as const
+
+function describeNoBrowser(): string {
+  return 'A scan needs Google Chrome or Microsoft Edge, and neither could be started. Edge comes with Windows, so if both are missing the app may not have permission to launch them.'
+}
+
+/**
+ * Opens the first of the channels above that will start.
+ *
+ * A channel that is not installed throws on launch, which is the only reliable
+ * way to ask — Playwright has no "is this present" check that does not itself
+ * try to run the thing.
+ */
+async function launchWithInstalledBrowser(): Promise<BrowserContext> {
+  const options = {
+    viewport: { width: 1440, height: 900 },
+    headless: false,
+    // Parked from the moment it opens. Moving it after launch would show the
+    // window on screen for a frame or two at the start of every scan.
+    args: [`--window-position=${PARKED_BOUNDS.left},${PARKED_BOUNDS.top}`],
+  }
+
+  for (const channel of BROWSER_CHANNELS) {
+    try {
+      return await chromium.launchPersistentContext(USER_DATA_DIR, { ...options, channel })
+    } catch (err) {
+      console.warn(`[playwright] ${channel} did not start:`, err instanceof Error ? err.message : err)
+    }
+  }
+
+  throw new Error(describeNoBrowser())
+}
+
 // ---------- service ----------
 
 export const playwrightService = {
@@ -87,13 +144,7 @@ export const playwrightService = {
       throw new Error('A browser session is already running')
     }
 
-    const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
-      viewport: { width: 1440, height: 900 },
-      headless: false,
-      // Parked from the moment it opens. Moving it after launch would show the
-      // window on screen for a frame or two at the start of every scan.
-      args: [`--window-position=${PARKED_BOUNDS.left},${PARKED_BOUNDS.top}`],
-    })
+    const context = await launchWithInstalledBrowser()
     activeContext = context
     context.once('close', () => {
       if (activeContext === context) activeContext = null

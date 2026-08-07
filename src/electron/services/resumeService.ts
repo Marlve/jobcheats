@@ -198,7 +198,7 @@ export const resumeService = {
       return failure(
         'no-text-layer',
         extension === '.pdf'
-          ? 'The file opened fine, but every page is an image of your resume rather than text — so there is nothing for JobMatch to read.'
+          ? 'The file opened fine, but every page is an image of your resume rather than text — so there is nothing for JobCheats to read.'
           : 'That file contains too little text to extract keywords from.',
         { ...described, pages, characters }
       )

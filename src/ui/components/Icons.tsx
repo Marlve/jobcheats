@@ -95,3 +95,9 @@ export const IconPin = (p: IconProps) => (
 export const IconPlus = (p: IconProps) => (
   <Svg {...p}><path d="M12 5v14M5 12h14" /></Svg>
 );
+
+/* An update is available — an arrow into a tray, the same shape as the upload
+   icon turned around. */
+export const IconDownload = (p: IconProps) => (
+  <Svg {...p}><path d="M12 3v12M7.5 10.5 12 15l4.5-4.5M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17" /></Svg>
+);

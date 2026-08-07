@@ -18,6 +18,61 @@
   background: var(--bg-inset);
 }
 
+/* ---------- job boards ---------- */
+
+.board-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+/* Divided rather than boxed: the rows are one list, and a border between them
+   is enough to separate them without turning each into its own card. */
+.board {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.board:first-child {
+  border-top: 0;
+  padding-top: 4px;
+}
+
+.board__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.board__main p {
+  margin: 0;
+}
+
+.board__main p + p {
+  margin-top: 3px;
+}
+
+/* ---------- about ---------- */
+
+.settings__version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 16px;
+}
+
+.settings__version p {
+  margin: 0;
+}
+
+.settings__version p + p {
+  margin-top: 3px;
+}
+
 /* ---------- storage ---------- */
 
 .stat-grid {

@@ -32,6 +32,12 @@ const JOB_TYPES: { value: JobType; label: string }[] = [
 
 const MAX_JOBS = [10, 25, 50].map((n) => ({ value: n, label: `Up to ${n} jobs` }));
 
+/** "LinkedIn and Seek" — read as a sentence rather than comma-spliced. */
+function joinNames(names: string[]): string {
+  if (names.length < 2) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 const PHASE_LABEL: Record<ScrapePhase, string> = {
   starting: 'Starting up',
   authenticating: 'Signing in',
@@ -73,17 +79,23 @@ export function ScanScreen() {
   const [runs, setRuns] = useState<ScrapeRun[]>([]);
   const [hasResume, setHasResume] = useState(true);
   const [keywordCount, setKeywordCount] = useState(0);
+  // null until read, so the header does not flash "no boards" on the way in.
+  const [boards, setBoards] = useState<BoardPreference[] | null>(null);
 
+  // Boards are read on mount rather than held anywhere shared: this screen is
+  // unmounted while you are in Settings, so coming back re-reads them.
   useEffect(() => {
     void (async () => {
-      const [words, resume, history] = await Promise.all([
+      const [words, resume, history, boardList] = await Promise.all([
         window.electron.listKeywords(),
         window.electron.getResume(),
         window.electron.listRuns(8),
+        window.electron.listBoards(),
       ]);
       setKeywordCount(words.filter((word) => word.enabled).length);
       setHasResume(Boolean(resume));
       setRuns(history);
+      setBoards(boardList);
     })();
   }, []);
 
@@ -146,7 +158,11 @@ export function ScanScreen() {
   const dirty = Boolean(term) || locations.length > 0 || datePosted !== '24h'
     || jobType !== 'full-time' || maxJobs !== 50;
 
-  const canRun = Boolean(term) && !running;
+  const enabledBoards = (boards ?? []).filter((board) => board.enabled);
+  const boardNames = enabledBoards.map((board) => SOURCE_LABEL[board.source]);
+  const noBoards = boards !== null && enabledBoards.length === 0;
+
+  const canRun = Boolean(term) && enabledBoards.length > 0 && !running;
   const inserted = results?.reduce((sum, r) => sum + (r.ok ? r.inserted : 0), 0) ?? 0;
 
   // Locations are the one input that does fan out — buildSearchUrls emits a
@@ -159,7 +175,9 @@ export function ScanScreen() {
         <div>
           <h1 className="t-title">Daily scan</h1>
           <p className="t-body t-secondary">
-            LinkedIn, scored against your resume as jobs come in
+            {boardNames.length
+              ? `${joinNames(boardNames)}, scored against your resume as jobs come in`
+              : 'Scored against your resume as jobs come in'}
           </p>
         </div>
 
@@ -171,6 +189,16 @@ export function ScanScreen() {
       </header>
 
       <div className="screen__body">
+        {noBoards && (
+          <div className="banner">
+            <span className="banner__icon"><IconWarning size={16} /></span>
+            <p className="t-body">
+              Every job board is turned off, so there is nothing for a scan to read. Turn one back
+              on under Settings › Job boards.
+            </p>
+          </div>
+        )}
+
         {!hasResume && (
           <div className="banner">
             <span className="banner__icon"><IconWarning size={16} /></span>

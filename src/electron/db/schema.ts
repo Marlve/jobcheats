@@ -116,6 +116,21 @@ const CREATE_KEYWORDS_TABLE = `
   )
 `
 
+/**
+ * Preferences, one row per setting.
+ *
+ * Key-value rather than a column per preference: these are read by name, never
+ * queried across, and a table that needs a migration for every new checkbox is
+ * a table that discourages adding one. A missing row means "never set", which
+ * is what lets a default live in config.ts instead of being seeded here.
+ */
+const CREATE_SETTINGS_TABLE = `
+  CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )
+`
+
 const CREATE_RUNS_TABLE = `
   CREATE TABLE IF NOT EXISTS scrape_runs (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -143,6 +158,7 @@ export function migrate() {
   db.exec(CREATE_RESUME_TABLE)
   db.exec(CREATE_KEYWORDS_TABLE)
   db.exec(CREATE_RUNS_TABLE)
+  db.exec(CREATE_SETTINGS_TABLE)
 
   // File size, shown on the resume card.
   addColumn('resume', 'bytes', 'INTEGER NOT NULL DEFAULT 0')

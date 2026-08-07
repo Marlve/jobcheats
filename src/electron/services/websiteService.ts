@@ -1,7 +1,17 @@
 import { playwrightService } from "./playwrightService.js"
-import { finishRun, insertJob, jobExists, pruneOldJobs, startRun } from "../db/db.js"
+import {
+  finishRun,
+  insertJob,
+  isBoardEnabled,
+  jobExists,
+  listBoardPreferences,
+  pruneOldJobs,
+  setBoardEnabled as setBoardPreference,
+  startRun,
+} from "../db/db.js"
 import { scoreNewJobs } from "./matchService.js"
 import { linkedinAdapter } from "./boards/linkedin.js"
+import { seekAdapter } from "./boards/seek.js"
 import {
   CancellationToken,
   JobBoardAdapter,
@@ -14,7 +24,7 @@ import { DEFAULT_DATE_POSTED, MAX_JOBS_PER_BOARD } from "../config.js"
 
 const adapters: Partial<Record<JobSource, JobBoardAdapter>> = {
   linkedin: linkedinAdapter,
-  // seek: seekAdapter — implement JobBoardAdapter and register it here.
+  seek: seekAdapter,
 }
 
 /** Boards run in sequence, so one token covers the whole session. */
@@ -172,6 +182,11 @@ async function runScrapeAll(
   params: SearchParams,
   onProgress: ProgressReporter
 ): Promise<ScrapeResult[]> {
+  // Every board turned off. The scan screen will not offer the button in that
+  // state, so this is only reachable out of order — return nothing rather than
+  // taking the run lock and opening a browser to visit no sites.
+  if (!sources.length) return []
+
   if (activeToken || playwrightService.isBusy) {
     return sources.map(source => ({
       ok: false as const,
@@ -210,9 +225,35 @@ export function registeredSources(): JobSource[] {
   return Object.keys(adapters) as JobSource[]
 }
 
+/**
+ * The boards a scan will actually run: turned on, and with an adapter behind
+ * them. A board can be configured without being implemented — the settings
+ * table has no idea what code exists — so the two lists are intersected here
+ * rather than either one being trusted alone.
+ */
+export function enabledSources(): JobSource[] {
+  return registeredSources().filter(source => isBoardEnabled(source))
+}
+
+/** The board list the Settings screen offers, hiding any without an adapter. */
+export function listBoards(): BoardPreference[] {
+  const registered = new Set(registeredSources())
+  return listBoardPreferences().filter(board => registered.has(board.source))
+}
+
+/**
+ * Turns a board on or off and reports where they all ended up. The stored
+ * preference is written for every configured board, but what comes back is the
+ * runnable list — so the caller sees the same shape it asked listBoards for.
+ */
+export function setBoard(source: JobSource, enabled: boolean): BoardPreference[] {
+  setBoardPreference(source, enabled)
+  return listBoards()
+}
+
 export const websiteService = {
   scrapeAll: (params: SearchParams, onProgress: ProgressReporter) =>
-    runScrapeAll(registeredSources(), params, onProgress),
+    runScrapeAll(enabledSources(), params, onProgress),
 
   /** Returns true when a running scrape was signalled to stop. */
   cancel(): boolean {

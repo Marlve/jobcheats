@@ -3,6 +3,14 @@
   "files": ["dist-electron", "dist-react"],
   "extraResources": ["dist-electron/preload.cjs"],
   "icon": "./icon.png",
+  "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "Marlve",
+      "repo": "jobcheats"
+    }
+  ],
   "mac": {
     "target": "dmg"
   },

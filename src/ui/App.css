@@ -258,3 +258,69 @@
     margin-bottom: 0;
   }
 }
+
+/* ---------- update notice ---------- */
+
+/* Pinned to the bottom of the window, clear of the sidebar. Above the screen
+   rather than inside it, because it belongs to the app and not to whichever
+   tab happens to be open — and because every screen already owns its header
+   and its scrolling body, with no seam between them to put this in. */
+.update-banner {
+  position: fixed;
+  left: var(--sidebar-width);
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px var(--gutter);
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  box-shadow: 0 -2px 12px rgb(20 19 22 / 6%);
+}
+
+/* The body scrolls under the bar, so its last card would sit behind it at the
+   bottom of a long list. Only applied while the bar is up. */
+.app--notified .screen__body {
+  padding-bottom: 104px;
+}
+
+.update-banner__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.update-banner__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.update-banner__main p {
+  margin: 0;
+}
+
+/* Release notes are a summary, and a paragraph of them would push the bar into
+   the content. One line, cut where it runs out of room. */
+.update-banner__notes {
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-banner__close {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.update-banner__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}

@@ -1,4 +1,4 @@
-import {app, BrowserWindow} from 'electron';
+import {app, BrowserWindow, shell} from 'electron';
 import path from 'path';
 import { isDev } from './util.js';
 import { getPreloadPath } from './pathResolver.js';
@@ -6,8 +6,10 @@ import { registerWindowIPC } from './ipc/window.js';
 import { registerWebsiteIPC } from './ipc/website.js';
 import { registerDbIPC } from './ipc/db.js';
 import { registerResumeIPC } from './ipc/resume.js';
+import { registerUpdateIPC, UPDATE_STATUS_CHANNEL } from './ipc/update.js';
 import { websiteService } from './services/websiteService.js';
 import { reconcileMatches } from './services/matchService.js';
+import { checkForUpdatesOnLaunch } from './services/updateService.js';
 import { closeDb, pruneOldJobs } from './db/db.js';
 
 app.on("ready", () => {
@@ -51,15 +53,56 @@ app.on("ready", () => {
     mainWindow.loadFile(path.join(app.getAppPath(), '/dist-react/index.html'));
   }
 
+  // Job links are scraped from third-party boards, so they are untrusted input:
+  // hand them to the OS only if they are ordinary web URLs. Anything else
+  // (file:, and the various scheme handlers Windows registers) is dropped.
+  const openInDefaultBrowser = (url: string) => {
+    let protocol: string
+    try {
+      protocol = new URL(url).protocol
+    } catch {
+      return
+    }
+    if (protocol === 'http:' || protocol === 'https:') void shell.openExternal(url)
+  }
+
+  // target="_blank" would otherwise spawn a second Electron window — Chromium
+  // with none of the user's browser: no sign-in, no password manager, no
+  // extensions. Applying to a job needs all three, so send it out to the
+  // default browser instead.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    openInDefaultBrowser(url)
+    return { action: 'deny' }
+  })
+
+  // Same treatment for links that navigate the current window: without this the
+  // app frame itself would be replaced by the job board, with no way back.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url === mainWindow.webContents.getURL()) return
+
+    event.preventDefault()
+    openInDefaultBrowser(url)
+  })
+
   registerWindowIPC(mainWindow)
   registerWebsiteIPC()
   registerDbIPC()
   registerResumeIPC()
+  registerUpdateIPC()
 
   // Retention runs on launch as well as after each scan, so an app left closed
   // for a fortnight still opens onto a current inbox.
   pruneOldJobs()
   reconcileMatches()
+
+  // Deliberately not awaited. The window is already up, the renderer asks for
+  // the stored answer on mount, and a slow or unreachable GitHub must not be
+  // able to hold up a launch — the notice simply appears once it lands.
+  void checkForUpdatesOnLaunch().then(status => {
+    if (status && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(UPDATE_STATUS_CHANNEL, status)
+    }
+  })
 });
 
 app.on('window-all-closed', () => {
