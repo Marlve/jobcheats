@@ -27,7 +27,7 @@ const RESTRICTED: RegExp[] = [
   /\b(?:citizens?|citizenship)\b\s*(?:,|\/|or|and)?\s*(?:permanent residen\w+|pr\b)/g,
   /\b(?:must|need to|required to|have to|should)\s+(?:be|have|hold)\b[^.;\n]{0,80}?\b(?:citizen\w*|permanent resid\w+|work rights|working rights|right to work|rights to work|work authori[sz]ation|work permit|work visa|valid visa)\b/g,
   /\b(?:full|unrestricted|existing|valid|current)\s+(?:and\s+\w+\s+)?(?:australian\s+)?(?:work rights|working rights|right to work|work authori[sz]ation|work visa)\b/g,
-  /\b(?:no|not|without|unable to|cannot|can't|can not|won't|will not|do not|don't|does not|doesn't|not able to|not in a position to)\s+(?:(?:provide|offer|support|available|currently)\s+){0,2}(?:visa\s+)?sponsor\w*/g,
+  /\b(?:no|not|without|unable to|cannot|can't|can not|won't|will not|do not|don't|does not|doesn't|not able to|not in a position to)\s+(?:(?:provide|offer|support|available|currently)\s+){0,2}(?:relocation\s+(?:or|and|\/)\s+)?(?:visa\s+)?sponsor\w*/g,
   /\bsponsorship\b[^.;\n]{0,25}\bnot\s+(?:available|offered|provided|possible|supported)/g,
   /\b(?:baseline|nv1|nv2|negative vetting|security)\s+clearance\b/g,
   /日本国籍|永住者/g,
