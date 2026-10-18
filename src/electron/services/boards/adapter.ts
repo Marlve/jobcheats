@@ -53,6 +53,12 @@ export interface ScrapeContext {
   page: Page
   params: SearchParams
   token: CancellationToken
+  /**
+   * True for a scheduled run, where nobody is watching. An adapter must not
+   * surface a window or wait for a person — it fails with a ScrapeError that
+   * says what needs doing instead.
+   */
+  unattended: boolean
   /** Persist a job. Returns true when it was new. */
   saveJob: (job: Job) => boolean
   /** True when the job is already stored, so it can be skipped without opening it. */

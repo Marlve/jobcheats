@@ -5,6 +5,7 @@ import { WindowControls } from './components/WindowControls';
 import { ResumeScreen } from './screens/ResumeScreen';
 import { InboxScreen } from './screens/InboxScreen';
 import { ScanScreen } from './screens/ScanScreen';
+import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import './App.css';
 
@@ -48,6 +49,7 @@ function App() {
         {route === 'inbox' && <InboxScreen key="inbox" view="inbox" />}
         {route === 'archive' && <InboxScreen key="archive" view="archive" />}
         {route === 'scan' && <ScanScreen />}
+        {route === 'profile' && <ProfileScreen />}
         {route === 'settings' && <SettingsScreen />}
       </main>
 

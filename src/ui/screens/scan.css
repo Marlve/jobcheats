@@ -363,3 +363,23 @@
     grid-column: 1 / -1;
   }
 }
+
+/* ---------- scheduled scan ---------- */
+
+.schedule__copy {
+  margin-top: 8px;
+  max-width: 720px;
+}
+
+.schedule__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.schedule__error {
+  margin-top: 12px;
+  color: var(--status-danger);
+}

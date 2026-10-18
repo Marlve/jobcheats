@@ -51,6 +51,15 @@ const BOARD_NOTE: Record<JobSource, string> = {
   seek: 'No sign-in needed. Newly added and not yet run against the live site, so expect rough edges.',
 };
 
+/**
+ * Which boards have somewhere to sign in. A Record so a new board cannot be
+ * added without deciding — the main process holds the actual URLs.
+ */
+const HAS_SIGN_IN: Record<JobSource, boolean> = {
+  linkedin: true,
+  seek: false,
+};
+
 export function SettingsScreen() {
   const [stats, setStats] = useState<DbStats | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -65,6 +74,8 @@ export function SettingsScreen() {
   const [busy, setBusy] = useState(false);
   /** Outcome of the last action, shown until the next one replaces it. */
   const [notice, setNotice] = useState<string | null>(null);
+  /** The board whose sign-in window is open. The call stays pending until it closes. */
+  const [signingIn, setSigningIn] = useState<JobSource | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -111,6 +122,22 @@ export function SettingsScreen() {
   async function toggleBoard(source: JobSource, enabled: boolean) {
     setBoards(await window.electron.setBoardEnabled(source, enabled));
     setNotice(null);
+  }
+
+  /**
+   * "ok" only says the window was opened and has been closed — nothing here can
+   * tell whether anyone actually signed in, so the notice does not claim it.
+   */
+  async function signIn(source: JobSource) {
+    setSigningIn(source);
+    setNotice(null);
+    const result = await window.electron.signIn(source);
+    setSigningIn(null);
+    setNotice(
+      result.ok
+        ? 'The sign-in window was closed. If you finished signing in, scans will use that session.'
+        : result.error
+    );
   }
 
   /**
@@ -175,8 +202,21 @@ export function SettingsScreen() {
                     <li key={board.source} className="board">
                       <div className="board__main">
                         <p className="t-label">{SOURCE_LABEL[board.source]}</p>
-                        <p className="t-caption t-muted">{BOARD_NOTE[board.source]}</p>
+                        <p className="t-caption t-muted">
+                          {signingIn === board.source
+                            ? 'A browser window is open. Sign in there, Google sign-in included, then close the window.'
+                            : BOARD_NOTE[board.source]}
+                        </p>
                       </div>
+                      {HAS_SIGN_IN[board.source] && window.electron.platform === 'win32' && (
+                        <Button
+                          size="sm"
+                          disabled={signingIn !== null}
+                          onClick={() => signIn(board.source)}
+                        >
+                          {signingIn === board.source ? 'Waiting…' : 'Sign in'}
+                        </Button>
+                      )}
                       <Toggle
                         checked={board.enabled}
                         label={`Scan ${SOURCE_LABEL[board.source]}`}

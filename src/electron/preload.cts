@@ -43,6 +43,22 @@ electron.contextBridge.exposeInMainWorld("electron", {
   setBoardEnabled: (source: JobSource, enabled: boolean) =>
     electron.ipcRenderer.invoke("setBoardEnabled", source, enabled),
 
+  signIn: (source: JobSource) => electron.ipcRenderer.invoke("signIn", source),
+
+  // ---- autofill ----
+  getProfile: () => electron.ipcRenderer.invoke("getProfile"),
+
+  saveProfile: (profile: Profile) => electron.ipcRenderer.invoke("saveProfile", profile),
+
+  autofill: (url: string) => electron.ipcRenderer.invoke("autofill", url),
+
+  // ---- scheduled scan ----
+  getSchedule: () => electron.ipcRenderer.invoke("getSchedule"),
+
+  saveSchedule: (config: ScheduleConfig) => electron.ipcRenderer.invoke("saveSchedule", config),
+
+  clearSchedule: () => electron.ipcRenderer.invoke("clearSchedule"),
+
   // ---- updates ----
   getUpdateStatus: () => electron.ipcRenderer.invoke("getUpdateStatus"),
 

@@ -60,6 +60,52 @@ export function setBoardEnabled(source: JobSource, enabled: boolean): BoardPrefe
   return listBoardPreferences()
 }
 
+// ---------- scheduled scan ----------
+
+const SCHEDULE_KEY = 'schedule.config'
+
+/** A stored JSON row, or null when there is none or it does not parse. */
+function readJson(key: string): unknown {
+  const raw = readSetting(key)
+  if (!raw) return null
+
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The saved schedule exactly as stored. Unvalidated on purpose: the shape check
+ * belongs with the validators, and a half-written row should read as "no
+ * schedule", not crash the scan that would have used it.
+ */
+export function readStoredSchedule(): unknown {
+  return readJson(SCHEDULE_KEY)
+}
+
+export function writeStoredSchedule(config: ScheduleConfig): void {
+  writeSetting(SCHEDULE_KEY, JSON.stringify(config))
+}
+
+export function deleteStoredSchedule(): void {
+  db.prepare('DELETE FROM settings WHERE key = ?').run(SCHEDULE_KEY)
+}
+
+// ---------- autofill profile ----------
+
+const PROFILE_KEY = 'profile.data'
+
+/** Unvalidated, for the same reason as the schedule above. */
+export function readStoredProfile(): unknown {
+  return readJson(PROFILE_KEY)
+}
+
+export function writeStoredProfile(profile: Profile): void {
+  writeSetting(PROFILE_KEY, JSON.stringify(profile))
+}
+
 // ---------- updates ----------
 
 const UPDATE_CACHE_KEY = 'update.lastCheck'

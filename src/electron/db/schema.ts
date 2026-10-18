@@ -154,6 +154,9 @@ export function migrate() {
   addColumn('jobs', 'work_type', 'TEXT')
   addColumn('jobs', 'run_id', 'INTEGER')
   addColumn('jobs', 'notes', 'TEXT')
+  // What the posting's wording says about work rights. NULL until classified.
+  addColumn('jobs', 'visa', 'TEXT')
+  addColumn('jobs', 'visa_evidence', 'TEXT')
 
   db.exec(CREATE_RESUME_TABLE)
   db.exec(CREATE_KEYWORDS_TABLE)

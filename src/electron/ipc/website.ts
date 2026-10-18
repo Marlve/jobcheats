@@ -1,5 +1,6 @@
 import { ipcMain, IpcMainInvokeEvent, WebContents } from "electron";
 import { listBoards, setBoard, websiteService } from "../services/websiteService.js";
+import { signInService } from "../services/signInService.js";
 import {
   validateBoolean,
   validateJobSource,
@@ -10,7 +11,7 @@ import {
 export const SCRAPE_PROGRESS_CHANNEL = "scrape:progress"
 
 /** Progress is fire-and-forget; a closed window must not break the scrape. */
-function progressReporter(sender: WebContents) {
+export function progressReporter(sender: WebContents) {
   return (progress: ScrapeProgress) => {
     if (sender.isDestroyed()) return
     sender.send(SCRAPE_PROGRESS_CHANNEL, progress)
@@ -40,6 +41,12 @@ export function registerWebsiteIPC() {
   ipcMain.handle("cancelScrape", (): boolean => websiteService.cancel());
 
   ipcMain.handle("listBoards", (): BoardPreference[] => listBoards());
+
+  // Stays pending for as long as the sign-in window is open — the renderer is
+  // waiting on the window being closed, not on anything being checked.
+  ipcMain.handle("signIn", (_event, rawSource: unknown): Promise<SignInResult> => {
+    return signInService.signIn(validateJobSource(rawSource))
+  });
 
   // Returns the whole list, not a flag — setBoardEnabled refuses to turn off
   // the last board, and the renderer needs to see that it was refused.

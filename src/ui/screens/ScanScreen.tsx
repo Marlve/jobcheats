@@ -9,6 +9,7 @@ import {
   IconStop,
   IconWarning,
 } from '../components/Icons';
+import { ScheduleCard } from '../components/ScheduleCard';
 import { Select } from '../components/Select';
 import { SOURCE_LABEL } from '../components/StatusPill';
 import { formatDateTime } from '../format';
@@ -107,18 +108,20 @@ export function ScanScreen() {
     return () => unsubscribe.current?.();
   }, []);
 
+  // The form as a search, or null until there is a term to search for. Shared
+  // by Run scan and the scheduled scan so the two cannot drift apart.
+  const search: SearchParams | null = term
+    ? { keywords: [term], location: locations, datePosted, jobType, maxJobs }
+    : null;
+
   async function run() {
+    if (!search) return;
+
     setRunning(true);
     setResults(null);
     setProgress(null);
 
-    const outcome = await window.electron.scrapeAll({
-      keywords: [term],
-      location: locations,
-      datePosted,
-      jobType,
-      maxJobs,
-    });
+    const outcome = await window.electron.scrapeAll(search);
 
     setResults(outcome);
     setRunning(false);
@@ -388,6 +391,8 @@ export function ScanScreen() {
             </p>
           )}
         </div>
+
+        <ScheduleCard search={search} />
 
         {/* ---------- history ---------- */}
         {runs.length > 0 && (

@@ -5,15 +5,17 @@ import {
   IconLock,
   IconScan,
   IconSettings,
+  IconUser,
 } from './Icons';
 
-export type Route = 'insights' | 'inbox' | 'archive' | 'scan' | 'settings' | 'resume';
+export type Route = 'insights' | 'inbox' | 'archive' | 'scan' | 'profile' | 'settings' | 'resume';
 
 const NAV: { route: Route; label: string; Icon: (p: { size?: number }) => React.JSX.Element }[] = [
   { route: 'insights', label: 'Insights', Icon: IconInsights },
   { route: 'inbox', label: 'Inbox', Icon: IconInbox },
   { route: 'archive', label: 'Archive', Icon: IconArchive },
   { route: 'scan', label: 'Daily scan', Icon: IconScan },
+  { route: 'profile', label: 'Profile', Icon: IconUser },
   { route: 'settings', label: 'Settings', Icon: IconSettings },
 ];
 

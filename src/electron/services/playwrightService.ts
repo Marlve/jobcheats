@@ -3,7 +3,7 @@ import path from 'path'
 import { app, BrowserWindow } from "electron"
 
 // ---------- constants ----------
-const USER_DATA_DIR = path.join(app.getPath('userData'), 'linkedin-profile')
+export const USER_DATA_DIR = path.join(app.getPath('userData'), 'linkedin-profile')
 
 /**
  * Where the browser window sits while a scan runs.
@@ -112,14 +112,18 @@ function describeNoBrowser(): string {
  * way to ask — Playwright has no "is this present" check that does not itself
  * try to run the thing.
  */
-async function launchWithInstalledBrowser(): Promise<BrowserContext> {
-  const options = {
-    viewport: { width: 1440, height: 900 },
-    headless: false,
-    // Parked from the moment it opens. Moving it after launch would show the
-    // window on screen for a frame or two at the start of every scan.
-    args: [`--window-position=${PARKED_BOUNDS.left},${PARKED_BOUNDS.top}`],
-  }
+async function launchWithInstalledBrowser(visible: boolean): Promise<BrowserContext> {
+  // A visible window is one a person is going to use, so it keeps the
+  // browser's own size and position rather than the scanner's fixed viewport.
+  const options = visible
+    ? { viewport: null, headless: false }
+    : {
+        viewport: { width: 1440, height: 900 },
+        headless: false,
+        // Parked from the moment it opens. Moving it after launch would show the
+        // window on screen for a frame or two at the start of every scan.
+        args: [`--window-position=${PARKED_BOUNDS.left},${PARKED_BOUNDS.top}`],
+      }
 
   for (const channel of BROWSER_CHANNELS) {
     try {
@@ -139,12 +143,17 @@ export const playwrightService = {
     return activeContext !== null
   },
 
-  openBrowser: async (): Promise<{ page: Page, context: BrowserContext }> => {
+  /**
+   * `visible` is for the application window, which stays on screen for a person
+   * to read and submit. It holds the same profile — and the same single-context
+   * lock — as a scan, so the two can never run at once.
+   */
+  openBrowser: async (visible = false): Promise<{ page: Page, context: BrowserContext }> => {
     if (activeContext) {
       throw new Error('A browser session is already running')
     }
 
-    const context = await launchWithInstalledBrowser()
+    const context = await launchWithInstalledBrowser(visible)
     activeContext = context
     context.once('close', () => {
       if (activeContext === context) activeContext = null
@@ -154,7 +163,7 @@ export const playwrightService = {
 
     // Belt and braces: the launch arg above does the real work, but a restored
     // profile can carry saved window bounds that override it.
-    await setWindowBounds(page, PARKED_BOUNDS)
+    if (!visible) await setWindowBounds(page, PARKED_BOUNDS)
 
     return { page, context }
   },

@@ -31,6 +31,16 @@ export const BOARD_ENABLED_BY_DEFAULT: Record<JobSource, boolean> = {
   seek: false,
 }
 
+/**
+ * Where to send someone to sign in to a board, for the boards that need it.
+ *
+ * Partial rather than a Record because most boards need nothing: Seek reads
+ * without an account, and a board with no entry simply has no Sign in button.
+ */
+export const SIGN_IN_URL: Partial<Record<JobSource, string>> = {
+  linkedin: 'https://www.linkedin.com/login',
+}
+
 /** The configured boards, in the order they are declared above. */
 export function configuredSources(): JobSource[] {
   return Object.keys(BOARD_ENABLED_BY_DEFAULT) as JobSource[]
@@ -62,6 +72,14 @@ export function isLastEnabledBoard(source: JobSource, enabled: JobSource[]): boo
 
 /** The app is a daily tool — anything older than this is noise. */
 export const DEFAULT_DATE_POSTED: DatePosted = '24h'
+
+// ---------- scheduled scan ----------
+
+/** The launch argument that means "run the saved scan, then leave" — see main.ts. */
+export const SCAN_FLAG = '--scan'
+
+/** What a saved schedule is registered as in Windows Task Scheduler. */
+export const SCHEDULE_TASK_NAME = 'JobCheats daily scan'
 
 // ---------- updates ----------
 

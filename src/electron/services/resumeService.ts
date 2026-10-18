@@ -230,6 +230,13 @@ export const resumeService = {
 
   getResume: (): ResumeMeta | null => getResumeMeta(),
 
+  /** Where the uploaded file sits on disk, for attaching to an application. */
+  storedResumePath: (): string | null => {
+    if (!fs.existsSync(RESUME_DIR)) return null
+    const [file] = fs.readdirSync(RESUME_DIR)
+    return file ? path.join(RESUME_DIR, file) : null
+  },
+
   getResumeText,
 
   deleteResume: (): boolean => {

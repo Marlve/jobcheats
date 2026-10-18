@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AutofillNote } from '../components/AutofillNote';
 import { Button } from '../components/Button';
 import { ScoreBadge } from '../components/ScoreBadge';
 import { SOURCE_LABEL, StatusPill } from '../components/StatusPill';
@@ -7,11 +8,13 @@ import {
   IconCheck,
   IconChevron,
   IconCross,
+  IconDocument,
   IconExternal,
   IconSearch,
 } from '../components/Icons';
 import { Select } from '../components/Select';
 import { Tooltip } from '../components/Tooltip';
+import { VisaChip } from '../components/VisaChip';
 import { daysUntil, formatDate } from '../format';
 import './inbox.css';
 
@@ -35,6 +38,13 @@ const SOURCES: { value: JobSource | 'all'; label: string }[] = [
   { value: 'seek', label: 'Seek' },
 ];
 
+/** Filters on what a posting's wording says. Silent postings pass the first one. */
+const VISA_FILTERS: { value: NonNullable<ListJobsOptions['visa']> | 'all'; label: string }[] = [
+  { value: 'all', label: 'Any visa wording' },
+  { value: 'not-restricted', label: 'Hide “needs work rights”' },
+  { value: 'sponsors', label: 'Sponsors visas only' },
+];
+
 const MIN_SCORES = [
   { value: 0, label: 'Any score' },
   { value: 40, label: '40+' },
@@ -50,6 +60,7 @@ export function InboxScreen({ view }: { view: JobListView }) {
   const [search, setSearch] = useState('');
   const [source, setSource] = useState<JobSource | 'all'>('all');
   const [minScore, setMinScore] = useState(0);
+  const [visa, setVisa] = useState<NonNullable<ListJobsOptions['visa']> | 'all'>('all');
   const [sortBy, setSortBy] = useState<NonNullable<ListJobsOptions['sortBy']>>('score');
   const [expanded, setExpanded] = useState<number | null>(null);
 
@@ -64,10 +75,11 @@ export function InboxScreen({ view }: { view: JobListView }) {
     view,
     sortBy,
     minScore: minScore || undefined,
+    visa: visa === 'all' ? undefined : visa,
     source: source === 'all' ? undefined : source,
     search: debouncedSearch.trim() || undefined,
     limit: 200,
-  }), [view, sortBy, minScore, source, debouncedSearch]);
+  }), [view, sortBy, minScore, visa, source, debouncedSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,7 +116,7 @@ export function InboxScreen({ view }: { view: JobListView }) {
   }
 
   const expiresIn = daysUntil(stats?.nextExpiryAt ?? null);
-  const filtered = Boolean(debouncedSearch.trim()) || minScore > 0 || source !== 'all';
+  const filtered = Boolean(debouncedSearch.trim()) || minScore > 0 || source !== 'all' || visa !== 'all';
 
   const copy = view === 'inbox'
     ? { title: 'Inbox', subtitle: `Jobs from the last ${stats?.retentionDays ?? 7} days, sorted by match score` }
@@ -155,6 +167,13 @@ export function InboxScreen({ view }: { view: JobListView }) {
             options={MIN_SCORES}
             onChange={setMinScore}
             label="Minimum match score"
+          />
+
+          <Select
+            value={visa}
+            options={VISA_FILTERS}
+            onChange={setVisa}
+            label="Visa wording"
           />
 
           <div className="segmented" role="group" aria-label="Sort by">
@@ -226,6 +245,15 @@ function JobCard({
 }) {
   const [notes, setNotes] = useState(job.notes ?? '');
   const saveTimer = useRef<number | null>(null);
+  const [filling, setFilling] = useState(false);
+  const [autofill, setAutofill] = useState<AutofillResult | null>(null);
+
+  async function runAutofill() {
+    if (!job.url) return;
+    setFilling(true);
+    setAutofill(await window.electron.autofill(job.url));
+    setFilling(false);
+  }
 
   // Notes save on a debounce rather than behind a button — there is no draft
   // state worth losing, and an explicit save is one more thing to forget.
@@ -261,6 +289,7 @@ function JobCard({
 
       <div className="job__facts t-caption t-muted">
         <span className="job__source">{SOURCE_LABEL[job.source]}</span>
+        <VisaChip kind={job.visa} evidence={job.visaEvidence} />
         {job.salary && <span>{job.salary}</span>}
         {job.postedAt && <span>Posted {formatDate(job.postedAt)}</span>}
         <span>Seen {formatDate(job.firstSeenAt)}</span>
@@ -322,12 +351,21 @@ function JobCard({
         </Button>
 
         {job.url && (
+          <Button size="sm" disabled={filling} onClick={runAutofill}>
+            <IconDocument size={14} />
+            {filling ? 'Working…' : 'Autofill'}
+          </Button>
+        )}
+
+        {job.url && (
           <a className="btn btn--ghost btn--sm job__open" href={job.url} target="_blank" rel="noreferrer">
             <IconExternal size={14} />
             Open
           </a>
         )}
       </div>
+
+      {autofill && <AutofillNote result={autofill} />}
     </li>
   );
 }

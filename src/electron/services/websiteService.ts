@@ -1,4 +1,5 @@
 import { playwrightService } from "./playwrightService.js"
+import { signInService } from "./signInService.js"
 import {
   finishRun,
   insertJob,
@@ -106,7 +107,8 @@ async function runBoard(
   params: SearchParams,
   onProgress: ProgressReporter,
   token: CancellationToken,
-  position: BoardPosition
+  position: BoardPosition,
+  unattended: boolean
 ): Promise<ScrapeResult> {
   const adapter = adapters[source]
   if (!adapter) {
@@ -142,6 +144,7 @@ async function runBoard(
       page,
       params,
       token,
+      unattended,
       tally,
       report,
       saveJob: (job: Job) => insertJob(job, runId),
@@ -180,19 +183,33 @@ async function runBoard(
 async function runScrapeAll(
   sources: JobSource[],
   params: SearchParams,
-  onProgress: ProgressReporter
+  onProgress: ProgressReporter,
+  unattended: boolean
 ): Promise<ScrapeResult[]> {
   // Every board turned off. The scan screen will not offer the button in that
   // state, so this is only reachable out of order — return nothing rather than
   // taking the run lock and opening a browser to visit no sites.
   if (!sources.length) return []
 
+  // The sign-in window holds the same browser profile a scan needs.
+  if (signInService.isOpen) {
+    return sources.map(source => ({
+      ok: false as const,
+      source,
+      runId: null,
+      error: 'A sign-in window is still open. Close it, then scan again.',
+    }))
+  }
+
   if (activeToken || playwrightService.isBusy) {
     return sources.map(source => ({
       ok: false as const,
       source,
       runId: null,
-      error: 'A scan is already running.',
+      // A busy browser with no scan behind it is the application window.
+      error: activeToken
+        ? 'A scan is already running.'
+        : 'The application window is still open. Close it, then scan again.',
     }))
   }
 
@@ -209,7 +226,7 @@ async function runScrapeAll(
         await runBoard(source, daily, onProgress, token, {
           index: index + 1,
           count: sources.length,
-        })
+        }, unattended)
       )
     }
   } finally {
@@ -252,8 +269,8 @@ export function setBoard(source: JobSource, enabled: boolean): BoardPreference[]
 }
 
 export const websiteService = {
-  scrapeAll: (params: SearchParams, onProgress: ProgressReporter) =>
-    runScrapeAll(enabledSources(), params, onProgress),
+  scrapeAll: (params: SearchParams, onProgress: ProgressReporter, { unattended = false } = {}) =>
+    runScrapeAll(enabledSources(), params, onProgress, unattended),
 
   /** Returns true when a running scrape was signalled to stop. */
   cancel(): boolean {
@@ -265,6 +282,7 @@ export const websiteService = {
   /** Best-effort teardown for app shutdown. */
   async shutdown() {
     activeToken?.cancel()
+    signInService.close()
     await playwrightService.closeBrowser()
   },
 }
