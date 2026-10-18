@@ -45,6 +45,13 @@ electron.contextBridge.exposeInMainWorld("electron", {
 
   signIn: (source: JobSource) => electron.ipcRenderer.invoke("signIn", source),
 
+  // ---- company watchlist ----
+  listWatchlist: () => electron.ipcRenderer.invoke("listWatchlist"),
+
+  addToWatchlist: (link: string) => electron.ipcRenderer.invoke("addToWatchlist", link),
+
+  removeFromWatchlist: (id: string) => electron.ipcRenderer.invoke("removeFromWatchlist", id),
+
   // ---- autofill ----
   getProfile: () => electron.ipcRenderer.invoke("getProfile"),
 

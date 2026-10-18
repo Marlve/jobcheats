@@ -74,6 +74,18 @@ export interface JobBoardAdapter {
   run(ctx: ScrapeContext): Promise<void>
 }
 
+/**
+ * A board read over plain HTTP. It has no page and does not touch the browser
+ * profile, so it neither waits for the sign-in window nor can it collide with
+ * one — the context is a scrape context minus everything a browser brings.
+ */
+export type FeedContext = Omit<ScrapeContext, 'page' | 'unattended'>
+
+export interface FeedBoardAdapter {
+  readonly name: BoardSource
+  run(ctx: FeedContext): Promise<void>
+}
+
 export function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms))
 }

@@ -46,18 +46,20 @@ function describeUpdate(update: UpdateStatus): string {
 }
 
 /** What turning each board on actually gets you, and what it costs. */
-const BOARD_NOTE: Record<JobSource, string> = {
+const BOARD_NOTE: Record<BoardSource, string> = {
   linkedin: 'Signs in as you, in a browser window this app drives. The session stays on this device.',
   seek: 'No sign-in needed. Newly added and not yet run against the live site, so expect rough edges.',
+  japandev: 'English-speaking tech jobs in Japan, and each one says whether it sponsors a visa from overseas. Reads its 60 newest postings, about three weeks. No sign-in, no browser window.',
 };
 
 /**
  * Which boards have somewhere to sign in. A Record so a new board cannot be
  * added without deciding — the main process holds the actual URLs.
  */
-const HAS_SIGN_IN: Record<JobSource, boolean> = {
+const HAS_SIGN_IN: Record<BoardSource, boolean> = {
   linkedin: true,
   seek: false,
+  japandev: false,
 };
 
 export function SettingsScreen() {
@@ -75,7 +77,7 @@ export function SettingsScreen() {
   /** Outcome of the last action, shown until the next one replaces it. */
   const [notice, setNotice] = useState<string | null>(null);
   /** The board whose sign-in window is open. The call stays pending until it closes. */
-  const [signingIn, setSigningIn] = useState<JobSource | null>(null);
+  const [signingIn, setSigningIn] = useState<BoardSource | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -119,7 +121,7 @@ export function SettingsScreen() {
    * the last enabled board, so the list it returns is applied as-is rather than
    * the state being flipped optimistically and then corrected.
    */
-  async function toggleBoard(source: JobSource, enabled: boolean) {
+  async function toggleBoard(source: BoardSource, enabled: boolean) {
     setBoards(await window.electron.setBoardEnabled(source, enabled));
     setNotice(null);
   }
@@ -128,7 +130,7 @@ export function SettingsScreen() {
    * "ok" only says the window was opened and has been closed — nothing here can
    * tell whether anyone actually signed in, so the notice does not claim it.
    */
-  async function signIn(source: JobSource) {
+  async function signIn(source: BoardSource) {
     setSigningIn(source);
     setNotice(null);
     const result = await window.electron.signIn(source);

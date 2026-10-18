@@ -28,7 +28,7 @@ export const signInService = {
   },
 
   /** Resolves once the window has been closed, which is how "done" is known. */
-  async signIn(source: JobSource): Promise<SignInResult> {
+  async signIn(source: BoardSource): Promise<SignInResult> {
     const url = SIGN_IN_URL[source]
     if (!url) return { ok: false, error: 'This board does not need a sign-in.' }
 

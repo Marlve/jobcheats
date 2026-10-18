@@ -383,3 +383,9 @@
   margin-top: 12px;
   color: var(--status-danger);
 }
+
+/* ---------- company watchlist ---------- */
+
+.chip-input--wide input {
+  width: 300px;
+}

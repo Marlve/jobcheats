@@ -36,6 +36,8 @@ const SOURCES: { value: JobSource | 'all'; label: string }[] = [
   { value: 'all', label: 'All boards' },
   { value: 'linkedin', label: 'LinkedIn' },
   { value: 'seek', label: 'Seek' },
+  { value: 'japandev', label: 'Japan Dev' },
+  { value: 'watchlist', label: 'Watchlist' },
 ];
 
 /** Filters on what a posting's wording says. Silent postings pass the first one. */

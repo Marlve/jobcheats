@@ -8,7 +8,8 @@ import { isVersion } from "../services/version.js"
 
 const JOB_TYPES: JobType[] = ['internship', 'full-time', 'part-time']
 const DATES_POSTED: DatePosted[] = ['24h', 'week', 'month']
-const JOB_SOURCES: JobSource[] = ['linkedin', 'seek']
+const BOARD_SOURCES: BoardSource[] = ['linkedin', 'seek', 'japandev']
+const JOB_SOURCES: JobSource[] = [...BOARD_SOURCES, 'watchlist']
 const JOB_STATUSES: JobStatus[] = ['new', 'saved', 'applied', 'rejected']
 const JOB_VIEWS: JobView[] = ['inbox', 'archive', 'all']
 const SORT_KEYS: NonNullable<ListJobsOptions['sortBy']>[] = ['score', 'date', 'company']
@@ -186,8 +187,19 @@ export function validateJobStatus(raw: unknown): JobStatus {
   return asOneOf(raw, JOB_STATUSES, 'status')
 }
 
-export function validateJobSource(raw: unknown): JobSource {
-  return asOneOf(raw, JOB_SOURCES, 'source')
+export function validateBoardSource(raw: unknown): BoardSource {
+  return asOneOf(raw, BOARD_SOURCES, 'source')
+}
+
+export function validateCareersLink(raw: unknown): string {
+  if (typeof raw !== 'string' || !raw.trim()) throw new ValidationError('Paste a link to a careers page')
+  if (raw.length > 500) throw new ValidationError('That link is too long')
+  return raw.trim()
+}
+
+export function validateCompanyId(raw: unknown): string {
+  if (typeof raw !== 'string' || raw.length > 200) throw new ValidationError('id must be a company id')
+  return raw
 }
 
 export function validateId(raw: unknown): number {

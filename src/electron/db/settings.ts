@@ -28,9 +28,9 @@ function writeSetting(key: string, value: string): void {
 
 // ---------- job boards ----------
 
-const boardKey = (source: JobSource) => `board.${source}.enabled`
+const boardKey = (source: BoardSource) => `board.${source}.enabled`
 
-export function isBoardEnabled(source: JobSource): boolean {
+export function isBoardEnabled(source: BoardSource): boolean {
   return boardEnabledFromStored(source, readSetting(boardKey(source)))
 }
 
@@ -50,7 +50,7 @@ export function listBoardPreferences(): BoardPreference[] {
  * scanner reads. A renderer that got the guard wrong should not be able to
  * leave the scanner with nothing to run.
  */
-export function setBoardEnabled(source: JobSource, enabled: boolean): BoardPreference[] {
+export function setBoardEnabled(source: BoardSource, enabled: boolean): BoardPreference[] {
   const stillOn = configuredSources().filter(other => isBoardEnabled(other))
 
   if (enabled || !isLastEnabledBoard(source, stillOn)) {
@@ -104,6 +104,19 @@ export function readStoredProfile(): unknown {
 
 export function writeStoredProfile(profile: Profile): void {
   writeSetting(PROFILE_KEY, JSON.stringify(profile))
+}
+
+// ---------- company watchlist ----------
+
+const WATCHLIST_KEY = 'watchlist.companies'
+
+/** Unvalidated, for the same reason as the schedule above. */
+export function readStoredWatchlist(): unknown {
+  return readJson(WATCHLIST_KEY)
+}
+
+export function writeStoredWatchlist(companies: WatchedCompany[]): void {
+  writeSetting(WATCHLIST_KEY, JSON.stringify(companies))
 }
 
 // ---------- updates ----------

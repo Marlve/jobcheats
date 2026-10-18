@@ -11,18 +11,21 @@ import {
 } from '../components/Icons';
 import { ScheduleCard } from '../components/ScheduleCard';
 import { Select } from '../components/Select';
+import { WatchlistCard } from '../components/WatchlistCard';
 import { SOURCE_LABEL } from '../components/StatusPill';
 import { formatDateTime } from '../format';
 import './scan.css';
 
 /**
- * The app is a daily tool and the inbox only keeps jobs for 7 days, so a month
- * of postings would mostly be listings that expire before you act on them.
- * 'month' is still a valid DatePosted for the scraper — it just isn't offered.
+ * The app is a daily tool and the inbox only keeps jobs for 7 days, so 24h stays
+ * the default. 'month' is for a first scan or a watched company: the retention
+ * clock starts when a job is first seen, not when it was posted, so a month-old
+ * posting still gets its full week to be acted on.
  */
 const DATE_POSTED: { value: DatePosted; label: string }[] = [
   { value: '24h', label: 'Last 24h' },
   { value: 'week', label: 'This week' },
+  { value: 'month', label: 'This month' },
 ];
 
 const JOB_TYPES: { value: JobType; label: string }[] = [
@@ -35,8 +38,11 @@ const MAX_JOBS = [10, 25, 50].map((n) => ({ value: n, label: `Up to ${n} jobs` }
 
 /** "LinkedIn and Seek" — read as a sentence rather than comma-spliced. */
 function joinNames(names: string[]): string {
-  if (names.length < 2) return names[0] ?? '';
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  const joined = names.length < 2
+    ? names[0] ?? ''
+    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  // It opens the sentence, and "your watchlist" is lower-case when it is alone.
+  return joined.charAt(0).toUpperCase() + joined.slice(1);
 }
 
 const PHASE_LABEL: Record<ScrapePhase, string> = {
@@ -82,21 +88,24 @@ export function ScanScreen() {
   const [keywordCount, setKeywordCount] = useState(0);
   // null until read, so the header does not flash "no boards" on the way in.
   const [boards, setBoards] = useState<BoardPreference[] | null>(null);
+  const [watched, setWatched] = useState<WatchedCompany[]>([]);
 
   // Boards are read on mount rather than held anywhere shared: this screen is
   // unmounted while you are in Settings, so coming back re-reads them.
   useEffect(() => {
     void (async () => {
-      const [words, resume, history, boardList] = await Promise.all([
+      const [words, resume, history, boardList, watchlist] = await Promise.all([
         window.electron.listKeywords(),
         window.electron.getResume(),
         window.electron.listRuns(8),
         window.electron.listBoards(),
+        window.electron.listWatchlist(),
       ]);
       setKeywordCount(words.filter((word) => word.enabled).length);
       setHasResume(Boolean(resume));
       setRuns(history);
       setBoards(boardList);
+      setWatched(watchlist);
     })();
   }, []);
 
@@ -162,10 +171,14 @@ export function ScanScreen() {
     || jobType !== 'full-time' || maxJobs !== 50;
 
   const enabledBoards = (boards ?? []).filter((board) => board.enabled);
-  const boardNames = enabledBoards.map((board) => SOURCE_LABEL[board.source]);
-  const noBoards = boards !== null && enabledBoards.length === 0;
+  const sourceNames = [
+    ...enabledBoards.map((board) => SOURCE_LABEL[board.source]),
+    ...(watched.length ? ['your watchlist'] : []),
+  ];
+  // A watched company is something for a scan to read even with every board off.
+  const noBoards = boards !== null && enabledBoards.length === 0 && watched.length === 0;
 
-  const canRun = Boolean(term) && enabledBoards.length > 0 && !running;
+  const canRun = Boolean(term) && (enabledBoards.length > 0 || watched.length > 0) && !running;
   const inserted = results?.reduce((sum, r) => sum + (r.ok ? r.inserted : 0), 0) ?? 0;
 
   // Locations are the one input that does fan out — buildSearchUrls emits a
@@ -178,8 +191,8 @@ export function ScanScreen() {
         <div>
           <h1 className="t-title">Daily scan</h1>
           <p className="t-body t-secondary">
-            {boardNames.length
-              ? `${joinNames(boardNames)}, scored against your resume as jobs come in`
+            {sourceNames.length
+              ? `${joinNames(sourceNames)}, scored against your resume as jobs come in`
               : 'Scored against your resume as jobs come in'}
           </p>
         </div>
@@ -391,6 +404,8 @@ export function ScanScreen() {
             </p>
           )}
         </div>
+
+        <WatchlistCard companies={watched} onChange={setWatched} />
 
         <ScheduleCard search={search} />
 

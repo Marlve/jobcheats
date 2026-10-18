@@ -9,6 +9,7 @@ import { registerResumeIPC } from './ipc/resume.js';
 import { registerUpdateIPC, UPDATE_STATUS_CHANNEL } from './ipc/update.js';
 import { registerScheduleIPC } from './ipc/schedule.js';
 import { registerApplyIPC } from './ipc/apply.js';
+import { registerWatchlistIPC } from './ipc/watchlist.js';
 import { progressReporter } from './ipc/website.js';
 import { websiteService } from './services/websiteService.js';
 import { reconcileMatches } from './services/matchService.js';
@@ -114,6 +115,7 @@ app.on("ready", () => {
   registerUpdateIPC()
   registerScheduleIPC()
   registerApplyIPC()
+  registerWatchlistIPC()
 
   app.on('second-instance', (_event, argv) => {
     // The scheduled task fired while the app was already open: scan in this
