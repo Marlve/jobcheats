@@ -144,6 +144,21 @@ const CREATE_RUNS_TABLE = `
   )
 `
 
+/**
+ * Every status a job has been moved to, in order. The jobs table only says where
+ * a job is now; this is what lets a job that was turned down after interviewing
+ * stay on the interview path of the pipeline instead of looking like it was
+ * turned down straight after applying.
+ */
+const CREATE_EVENTS_TABLE = `
+  CREATE TABLE IF NOT EXISTS job_events (
+    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL REFERENCES jobs (id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    at     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )
+`
+
 export function migrate() {
   migrateJobsTable()
 
@@ -162,6 +177,7 @@ export function migrate() {
   db.exec(CREATE_KEYWORDS_TABLE)
   db.exec(CREATE_RUNS_TABLE)
   db.exec(CREATE_SETTINGS_TABLE)
+  db.exec(CREATE_EVENTS_TABLE)
 
   // File size, shown on the resume card.
   addColumn('resume', 'bytes', 'INTEGER NOT NULL DEFAULT 0')
@@ -169,6 +185,7 @@ export function migrate() {
   db.exec('CREATE INDEX IF NOT EXISTS idx_jobs_first_seen ON jobs (first_seen_at DESC)')
   db.exec('CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs (status)')
   db.exec('CREATE INDEX IF NOT EXISTS idx_jobs_match_score ON jobs (match_score DESC)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_job_events_job ON job_events (job_id)')
 }
 
 migrate()

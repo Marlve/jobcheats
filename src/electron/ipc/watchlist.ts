@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import { addToWatchlist, listWatchlist, removeFromWatchlist } from "../services/watchlistService.js";
-import { validateCareersLink, validateCompanyId, ValidationError } from "./validate.js";
+import { validateCareersLink, validateTextId, ValidationError } from "./validate.js";
 
 export function registerWatchlistIPC() {
   ipcMain.handle("listWatchlist", (): WatchedCompany[] => listWatchlist());
@@ -17,6 +17,6 @@ export function registerWatchlistIPC() {
   });
 
   ipcMain.handle("removeFromWatchlist", (_event, raw: unknown): WatchedCompany[] => {
-    return removeFromWatchlist(validateCompanyId(raw))
+    return removeFromWatchlist(validateTextId(raw))
   });
 }

@@ -7,14 +7,22 @@ export const RETENTION_DAYS = 7
  * Statuses exempt from retention. Deleting a job you applied to would destroy
  * your application history, so acting on a job archives it permanently.
  */
-export const ARCHIVED_STATUSES: JobStatus[] = ['saved', 'applied']
+export const ARCHIVED_STATUSES: JobStatus[] = [
+  'saved',
+  'applied',
+  'interview',
+  'offer',
+  'hired',
+  'turned_down',
+  'withdrawn',
+]
 export const INBOX_STATUSES: JobStatus[] = ['new', 'rejected']
 
 /** A job at or above this score counts as a strong match. */
 export const MATCH_THRESHOLD = 60
 
-/** Per-board cap for a single run. */
-export const MAX_JOBS_PER_BOARD = 50
+/** Per-board cap for a single run, across all of its locations. */
+export const MAX_JOBS_PER_BOARD = 100
 
 /**
  * Which boards a scan runs when you have never said otherwise.

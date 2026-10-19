@@ -1,0 +1,60 @@
+.pipeline__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.pipeline__tiles dd {
+  margin: 4px 0 0;
+}
+
+.pipeline__chart {
+  overflow-x: auto;
+}
+
+.pipeline__svg {
+  display: block;
+  width: 100%;
+  min-width: 720px;
+  height: auto;
+}
+
+/* One tone per kind of outcome: green is progress, red is a no from them,
+   olive is waiting, grey is you stepping back. Ribbons take the colour of the
+   box they flow into, so a branch reads from its end. */
+.pipeline__node--neutral { fill: var(--text-primary); }
+.pipeline__node--info { fill: var(--text-secondary); }
+.pipeline__node--warn { fill: var(--status-warning); }
+.pipeline__node--success { fill: var(--score-strong); }
+.pipeline__node--danger { fill: var(--status-danger); }
+.pipeline__node--muted { fill: var(--text-muted); }
+
+.pipeline__link { opacity: 0.22; }
+.pipeline__link:hover { opacity: 0.4; }
+.pipeline__link--neutral { fill: var(--text-primary); }
+.pipeline__link--info { fill: var(--text-secondary); }
+.pipeline__link--warn { fill: var(--status-warning); }
+.pipeline__link--success { fill: var(--score-strong); }
+.pipeline__link--danger { fill: var(--status-danger); }
+.pipeline__link--muted { fill: var(--text-muted); }
+
+/* The outline keeps a label readable where a ribbon runs behind it. */
+.pipeline__label {
+  font-size: 12px;
+  font-weight: 500;
+  fill: var(--text-primary);
+  stroke: var(--bg-surface);
+  stroke-width: 4px;
+  paint-order: stroke;
+}
+
+.pipeline__count {
+  font-weight: 400;
+  fill: var(--text-secondary);
+}
+
+.pipeline__note {
+  margin-top: 4px;
+  max-width: 720px;
+}

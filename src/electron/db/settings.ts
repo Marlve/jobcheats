@@ -119,6 +119,19 @@ export function writeStoredWatchlist(companies: WatchedCompany[]): void {
   writeSetting(WATCHLIST_KEY, JSON.stringify(companies))
 }
 
+// ---------- search history ----------
+
+const SEARCH_HISTORY_KEY = 'search.history'
+
+/** Unvalidated, for the same reason as the schedule above. */
+export function readStoredSearchHistory(): unknown {
+  return readJson(SEARCH_HISTORY_KEY)
+}
+
+export function writeStoredSearchHistory(entries: SearchHistoryEntry[]): void {
+  writeSetting(SEARCH_HISTORY_KEY, JSON.stringify(entries))
+}
+
 // ---------- updates ----------
 
 const UPDATE_CACHE_KEY = 'update.lastCheck'

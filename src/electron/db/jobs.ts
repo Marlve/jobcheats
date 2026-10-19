@@ -24,6 +24,9 @@ const jobExistsStmt = db.prepare(
 )
 
 const updateStatusStmt = db.prepare('UPDATE jobs SET status = ? WHERE id = ?')
+const insertEventStmt = db.prepare('INSERT INTO job_events (job_id, status) VALUES (?, ?)')
+const jobStatusStmt = db.prepare('SELECT status FROM jobs WHERE id = ?')
+const hasEventStmt = db.prepare('SELECT 1 AS hit FROM job_events WHERE job_id = ? LIMIT 1')
 const updateNotesStmt = db.prepare('UPDATE jobs SET notes = ? WHERE id = ?')
 const updateMatchStmt = db.prepare(
   'UPDATE jobs SET match_score = ?, matched_keywords = ? WHERE id = ?'
@@ -296,8 +299,36 @@ export function setJobVisas(rows: { id: number; kind: VisaKind; evidence: string
 }
 
 export function updateJobStatus(id: number, status: JobStatus): boolean {
-  const { changes } = updateStatusStmt.run(status, id)
-  return Number(changes) > 0
+  return withTransaction(() => {
+    const before = jobStatusStmt.get(id) as { status: string } | undefined
+    if (!before) return false
+
+    // A job moved before the log existed has no history, so its starting point
+    // is written down first — otherwise "applied, then withdrew" would read as
+    // "never applied".
+    if (!hasEventStmt.get(id)) insertEventStmt.run(id, before.status)
+
+    updateStatusStmt.run(status, id)
+    insertEventStmt.run(id, status)
+    return true
+  })
+}
+
+/** What the pipeline reads: where each saved or applied job is, and where it has been. */
+export function getPipelineRows(): { status: JobStatus; reached: JobStatus[] }[] {
+  const rows = db
+    .prepare(`
+      SELECT j.status AS status, GROUP_CONCAT(DISTINCT e.status) AS reached
+      FROM jobs j LEFT JOIN job_events e ON e.job_id = j.id
+      WHERE j.status IN (${placeholders(ARCHIVED_STATUSES.length)})
+      GROUP BY j.id
+    `)
+    .all(...ARCHIVED_STATUSES) as { status: string; reached: string | null }[]
+
+  return rows.map(row => ({
+    status: row.status as JobStatus,
+    reached: row.reached ? (row.reached.split(',') as JobStatus[]) : [],
+  }))
 }
 
 export function setJobNotes(id: number, notes: string): boolean {

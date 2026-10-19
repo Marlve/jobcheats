@@ -12,6 +12,7 @@ import {
 import { ScheduleCard } from '../components/ScheduleCard';
 import { Select } from '../components/Select';
 import { WatchlistCard } from '../components/WatchlistCard';
+import { SearchHistory } from '../components/SearchHistory';
 import { SOURCE_LABEL } from '../components/StatusPill';
 import { formatDateTime } from '../format';
 import './scan.css';
@@ -89,21 +90,24 @@ export function ScanScreen() {
   // null until read, so the header does not flash "no boards" on the way in.
   const [boards, setBoards] = useState<BoardPreference[] | null>(null);
   const [watched, setWatched] = useState<WatchedCompany[]>([]);
+  const [history, setHistory] = useState<SearchHistoryEntry[]>([]);
 
   // Boards are read on mount rather than held anywhere shared: this screen is
   // unmounted while you are in Settings, so coming back re-reads them.
   useEffect(() => {
     void (async () => {
-      const [words, resume, history, boardList, watchlist] = await Promise.all([
+      const [words, resume, recent, boardList, watchlist, past] = await Promise.all([
         window.electron.listKeywords(),
         window.electron.getResume(),
         window.electron.listRuns(8),
         window.electron.listBoards(),
         window.electron.listWatchlist(),
+        window.electron.listSearchHistory(),
       ]);
       setKeywordCount(words.filter((word) => word.enabled).length);
       setHasResume(Boolean(resume));
-      setRuns(history);
+      setRuns(recent);
+      setHistory(past);
       setBoards(boardList);
       setWatched(watchlist);
     })();
@@ -135,6 +139,19 @@ export function ScanScreen() {
     setResults(outcome);
     setRunning(false);
     setRuns(await window.electron.listRuns(8));
+    setHistory(await window.electron.listSearchHistory());
+  }
+
+  /** Fills the form from an earlier search; running it is still up to you. */
+  function reuse(entry: SearchHistoryEntry) {
+    const { keywords, location, datePosted: when, jobType: type, maxJobs: limit } = entry.search;
+    setTerm(keywords[0] ?? '');
+    setDraft('');
+    setLocations(location);
+    setLocationDraft('');
+    setDatePosted(when ?? '24h');
+    setJobType(type);
+    setMaxJobs(limit ?? 50);
   }
 
   async function cancel() {
@@ -404,6 +421,8 @@ export function ScanScreen() {
             </p>
           )}
         </div>
+
+        <SearchHistory entries={history} onUse={reuse} onChange={setHistory} />
 
         <WatchlistCard companies={watched} onChange={setWatched} />
 

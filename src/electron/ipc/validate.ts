@@ -10,7 +10,17 @@ const JOB_TYPES: JobType[] = ['internship', 'full-time', 'part-time']
 const DATES_POSTED: DatePosted[] = ['24h', 'week', 'month']
 const BOARD_SOURCES: BoardSource[] = ['linkedin', 'seek', 'japandev']
 const JOB_SOURCES: JobSource[] = [...BOARD_SOURCES, 'watchlist']
-const JOB_STATUSES: JobStatus[] = ['new', 'saved', 'applied', 'rejected']
+const JOB_STATUSES: JobStatus[] = [
+  'new',
+  'saved',
+  'applied',
+  'interview',
+  'offer',
+  'hired',
+  'turned_down',
+  'withdrawn',
+  'rejected',
+]
 const JOB_VIEWS: JobView[] = ['inbox', 'archive', 'all']
 const SORT_KEYS: NonNullable<ListJobsOptions['sortBy']>[] = ['score', 'date', 'company']
 const VISA_FILTERS: NonNullable<ListJobsOptions['visa']>[] = ['not-restricted', 'sponsors']
@@ -197,8 +207,8 @@ export function validateCareersLink(raw: unknown): string {
   return raw.trim()
 }
 
-export function validateCompanyId(raw: unknown): string {
-  if (typeof raw !== 'string' || raw.length > 200) throw new ValidationError('id must be a company id')
+export function validateTextId(raw: unknown): string {
+  if (typeof raw !== 'string' || raw.length > 200) throw new ValidationError('id must be a short piece of text')
   return raw
 }
 

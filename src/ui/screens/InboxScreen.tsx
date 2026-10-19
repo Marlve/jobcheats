@@ -40,6 +40,28 @@ const SOURCES: { value: JobSource | 'all'; label: string }[] = [
   { value: 'watchlist', label: 'Watchlist' },
 ];
 
+/**
+ * How far along an application is. These are the stages after you apply, in the
+ * order they usually happen; the pipeline diagram branches on them.
+ */
+const STAGES: { value: JobStatus; label: string }[] = [
+  { value: 'applied', label: 'Applied' },
+  { value: 'interview', label: 'Interview' },
+  { value: 'offer', label: 'Offer' },
+  { value: 'hired', label: 'Hired' },
+  { value: 'turned_down', label: 'Turned down' },
+  { value: 'withdrawn', label: 'Withdrew' },
+];
+
+const IN_PIPELINE = new Set<JobStatus>(STAGES.map((stage) => stage.value));
+
+/** The archive can be narrowed to one stage; the inbox has none. */
+const STAGE_FILTERS: { value: JobStatus | 'all'; label: string }[] = [
+  { value: 'all', label: 'All stages' },
+  { value: 'saved', label: 'Saved' },
+  ...STAGES,
+];
+
 /** Filters on what a posting's wording says. Silent postings pass the first one. */
 const VISA_FILTERS: { value: NonNullable<ListJobsOptions['visa']> | 'all'; label: string }[] = [
   { value: 'all', label: 'Any visa wording' },
@@ -63,6 +85,7 @@ export function InboxScreen({ view }: { view: JobListView }) {
   const [source, setSource] = useState<JobSource | 'all'>('all');
   const [minScore, setMinScore] = useState(0);
   const [visa, setVisa] = useState<NonNullable<ListJobsOptions['visa']> | 'all'>('all');
+  const [stage, setStage] = useState<JobStatus | 'all'>('all');
   const [sortBy, setSortBy] = useState<NonNullable<ListJobsOptions['sortBy']>>('score');
   const [expanded, setExpanded] = useState<number | null>(null);
 
@@ -79,9 +102,10 @@ export function InboxScreen({ view }: { view: JobListView }) {
     minScore: minScore || undefined,
     visa: visa === 'all' ? undefined : visa,
     source: source === 'all' ? undefined : source,
+    status: view === 'archive' && stage !== 'all' ? stage : undefined,
     search: debouncedSearch.trim() || undefined,
     limit: 200,
-  }), [view, sortBy, minScore, visa, source, debouncedSearch]);
+  }), [view, sortBy, minScore, visa, source, stage, debouncedSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,8 +131,9 @@ export function InboxScreen({ view }: { view: JobListView }) {
 
     // Acting on a job can move it out of the current view (saving promotes it to
     // the archive), so drop it from the list rather than showing a stale row.
-    const stillHere = view === 'inbox' ? next === 'new' || next === 'rejected'
-      : next === 'saved' || next === 'applied';
+    const inInbox = next === 'new' || next === 'rejected';
+    const stillHere = (view === 'inbox' ? inInbox : !inInbox)
+      && (view !== 'archive' || stage === 'all' || stage === next);
 
     setJobs((current) => stillHere
       ? current.map((row) => (row.id === job.id ? { ...row, status: next } : row))
@@ -118,11 +143,11 @@ export function InboxScreen({ view }: { view: JobListView }) {
   }
 
   const expiresIn = daysUntil(stats?.nextExpiryAt ?? null);
-  const filtered = Boolean(debouncedSearch.trim()) || minScore > 0 || source !== 'all' || visa !== 'all';
+  const filtered = Boolean(debouncedSearch.trim()) || minScore > 0 || source !== 'all' || visa !== 'all' || stage !== 'all';
 
   const copy = view === 'inbox'
     ? { title: 'Inbox', subtitle: `Jobs from the last ${stats?.retentionDays ?? 7} days, sorted by match score` }
-    : { title: 'Archive', subtitle: 'Jobs you saved or applied to — kept indefinitely' };
+    : { title: 'Archive', subtitle: 'Jobs you saved or applied to, and how each one went — kept indefinitely' };
 
   return (
     <>
@@ -134,7 +159,7 @@ export function InboxScreen({ view }: { view: JobListView }) {
 
         {stats && (
           <div className="screen__actions">
-            <Tooltip content={view === 'inbox' ? 'Jobs waiting in your inbox.' : 'Jobs you saved or applied to.'}>
+            <Tooltip content={view === 'inbox' ? 'Jobs waiting in your inbox.' : 'Jobs you saved or are following up on.'}>
               <span className="count-chip">
                 {view === 'inbox' ? stats.inboxCount : stats.archiveCount} jobs
               </span>
@@ -177,6 +202,15 @@ export function InboxScreen({ view }: { view: JobListView }) {
             onChange={setVisa}
             label="Visa wording"
           />
+
+          {view === 'archive' && (
+            <Select
+              value={stage}
+              options={STAGE_FILTERS}
+              onChange={setStage}
+              label="Stage"
+            />
+          )}
 
           <div className="segmented" role="group" aria-label="Sort by">
             {SORTS.map((item) => (
@@ -270,6 +304,7 @@ function JobCard({
   }
 
   const meta = [job.company, job.location, job.workType].filter(Boolean).join(' · ');
+  const inPipeline = IN_PIPELINE.has(job.status);
 
   return (
     <li className={`card job${open ? ' job--open' : ''}`}>
@@ -325,32 +360,39 @@ function JobCard({
       )}
 
       <div className="job__actions">
-        <Button
-          size="sm"
-          variant={job.status === 'saved' ? 'primary' : 'secondary'}
-          onClick={() => onStatus(job, 'saved')}
-        >
-          <IconBookmark size={14} />
-          {job.status === 'saved' ? 'Saved' : 'Save'}
-        </Button>
+        {/* Once you are past applying, the stage is the one thing to change. */}
+        {!inPipeline && (
+          <>
+            <Button
+              size="sm"
+              variant={job.status === 'saved' ? 'primary' : 'secondary'}
+              onClick={() => onStatus(job, 'saved')}
+            >
+              <IconBookmark size={14} />
+              {job.status === 'saved' ? 'Saved' : 'Save'}
+            </Button>
 
-        <Button
-          size="sm"
-          variant={job.status === 'applied' ? 'primary' : 'secondary'}
-          onClick={() => onStatus(job, 'applied')}
-        >
-          <IconCheck size={14} />
-          {job.status === 'applied' ? 'Applied' : 'Mark applied'}
-        </Button>
+            <Button size="sm" variant="secondary" onClick={() => onStatus(job, 'applied')}>
+              <IconCheck size={14} />
+              Mark applied
+            </Button>
 
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => onStatus(job, 'rejected')}
-        >
-          <IconCross size={14} />
-          {job.status === 'rejected' ? 'Rejected' : 'Not for me'}
-        </Button>
+            <Button size="sm" variant="ghost" onClick={() => onStatus(job, 'rejected')}>
+              <IconCross size={14} />
+              Not for me
+            </Button>
+          </>
+        )}
+
+        {inPipeline && (
+          <Select
+            variant="pill"
+            value={job.status}
+            options={STAGES}
+            label="Stage"
+            onChange={(next) => { if (next !== job.status) onStatus(job, next); }}
+          />
+        )}
 
         {job.url && (
           <Button size="sm" disabled={filling} onClick={runAutofill}>

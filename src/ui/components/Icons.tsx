@@ -24,6 +24,10 @@ export const IconInsights = (p: IconProps) => (
   <Svg {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></Svg>
 );
 
+export const IconPipeline = (p: IconProps) => (
+  <Svg {...p}><path d="M3 6h5c4 0 4 6 8 6h5M3 18h5c4 0 4-6 8-6M16 12c2 0 3-6 5-6" /></Svg>
+);
+
 export const IconInbox = (p: IconProps) => (
   <Svg {...p}><rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M2.5 12h5l1.5 2.5h6L16.5 12h5" /></Svg>
 );

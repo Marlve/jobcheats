@@ -1,6 +1,7 @@
 import { ipcMain, IpcMainInvokeEvent, WebContents } from "electron";
 import { listBoards, setBoard, websiteService } from "../services/websiteService.js";
 import { signInService } from "../services/signInService.js";
+import { recordSearch } from "../services/searchHistory.js";
 import {
   validateBoolean,
   validateBoardSource,
@@ -34,6 +35,10 @@ export function registerWebsiteIPC() {
     if ('error' in parsed) {
       return [{ ok: false, source: 'linkedin', runId: null, error: parsed.error }]
     }
+
+    // Recorded when it is run, not when it is typed, so the list holds searches
+    // that were actually used. A scheduled run goes through another door.
+    recordSearch(parsed.params)
 
     return websiteService.scrapeAll(parsed.params, progressReporter(event.sender))
   });

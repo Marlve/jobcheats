@@ -82,6 +82,16 @@ electron.contextBridge.exposeInMainWorld("electron", {
     return () => electron.ipcRenderer.off("update:status", listener)
   },
 
+  // ---- pipeline ----
+  getPipeline: () => electron.ipcRenderer.invoke("getPipeline"),
+
+  // ---- search history ----
+  listSearchHistory: () => electron.ipcRenderer.invoke("listSearchHistory"),
+
+  removeSearchHistory: (id: string) => electron.ipcRenderer.invoke("removeSearchHistory", id),
+
+  clearSearchHistory: () => electron.ipcRenderer.invoke("clearSearchHistory"),
+
   // ---- jobs ----
   listJobs: (options?: ListJobsOptions) => electron.ipcRenderer.invoke("listJobs", options),
 

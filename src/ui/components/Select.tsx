@@ -91,10 +91,12 @@ export function Select<T extends string | number>({
     });
   }, [open]);
 
+  // Only once it is visible: the list is hidden until it has been placed, and a
+  // hidden element cannot take focus, so asking earlier left the keys dead.
   useEffect(() => {
-    if (!open) return;
+    if (!open || !box.placed) return;
     listRef.current?.focus();
-  }, [open]);
+  }, [open, box.placed]);
 
   // Scrolling the page underneath an open list would leave it stranded next to
   // whatever moved into its place. The list's own scrolling does not count: a

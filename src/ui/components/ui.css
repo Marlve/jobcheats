@@ -294,6 +294,26 @@
   color: var(--accent-on);
 }
 
+.pill--interview {
+  background: transparent;
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+.pill--offer,
+.pill--hired {
+  background: var(--score-strong);
+  border-color: var(--score-strong);
+  color: var(--accent-on);
+}
+
+.pill--turned_down {
+  background: var(--status-danger-surface);
+  border-color: var(--status-danger-border);
+  color: var(--status-danger);
+}
+
+.pill--withdrawn,
 .pill--rejected {
   background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   border-color: var(--border-default);

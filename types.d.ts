@@ -89,6 +89,18 @@ interface Window {
     /** Fires when the launch check lands after the renderer has already asked. */
     subscribeUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
 
+    // ---- pipeline ----
+
+    /** Where every saved or applied job ended up, as the flows of a Sankey diagram. */
+    getPipeline: () => Promise<PipelineGraph>;
+
+    // ---- search history ----
+    listSearchHistory: () => Promise<SearchHistoryEntry[]>;
+
+    removeSearchHistory: (id: string) => Promise<SearchHistoryEntry[]>;
+
+    clearSearchHistory: () => Promise<SearchHistoryEntry[]>;
+
     // ---- jobs ----
     listJobs: (options?: ListJobsOptions) => Promise<JobRow[]>;
 
@@ -201,6 +213,42 @@ type AutofillResult =
     }
   | { ok: false; error: string }
 
+// ---------- search history ----------
+
+/** A search that was run from the Daily scan screen. */
+interface SearchHistoryEntry {
+  /** Same search, same id — running it again moves it to the top instead of adding a copy. */
+  id: string;
+  search: SearchParams;
+  lastRunAt: string;
+}
+
+// ---------- pipeline ----------
+
+type PipelineTone = 'neutral' | 'info' | 'warn' | 'success' | 'danger' | 'muted'
+
+interface PipelineNode {
+  id: string;
+  label: string;
+  /** Column, left to right. */
+  rank: number;
+  tone: PipelineTone;
+  value: number;
+}
+
+interface PipelineLink {
+  source: string;
+  target: string;
+  value: number;
+}
+
+interface PipelineGraph {
+  nodes: PipelineNode[];
+  links: PipelineLink[];
+  /** Jobs that were saved or applied to. Zero means there is nothing to draw. */
+  total: number;
+}
+
 // ---------- scheduled scan ----------
 
 /** A search to run by itself once a day. */
@@ -253,7 +301,20 @@ interface UpdateStatus {
   dismissedVersion: string | null;
 }
 
-type JobStatus = 'new' | 'saved' | 'applied' | 'rejected'
+/**
+ * 'rejected' is you passing on a job ("Not for me"). The employer saying no is
+ * 'turned_down', a separate thing that belongs to the pipeline, not the inbox.
+ */
+type JobStatus =
+  | 'new'
+  | 'saved'
+  | 'applied'
+  | 'interview'
+  | 'offer'
+  | 'hired'
+  | 'turned_down'
+  | 'withdrawn'
+  | 'rejected'
 
 type WorkType = 'remote' | 'hybrid' | 'onsite'
 
