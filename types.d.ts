@@ -50,8 +50,10 @@ interface Window {
     saveProfile: (profile: Profile) => Promise<Profile>;
 
     /**
-     * First call opens the job in a visible browser; later calls fill whatever
-     * form is in its front tab. Never submits.
+     * First call opens the job in a visible browser, presses Apply and fills what
+     * that leads to (a LinkedIn Easy Apply popup, stepped through, or the
+     * company's own form). Later calls carry on with an open popup, else fill
+     * whatever form is in its front tab. Never presses Submit.
      */
     autofill: (url: string) => Promise<AutofillResult>;
 
@@ -184,6 +186,8 @@ type AutofillResult =
       needsYou: string[];
       /** Other fields that were left alone. */
       skipped: number;
+      /** Easy Apply only: on its last page (Submit is yours), or stuck on a step that needs you. */
+      stoppedAt?: 'review' | 'questions';
     }
   | { ok: false; error: string }
 
@@ -276,8 +280,9 @@ interface UpdateStatus {
 }
 
 /**
- * 'rejected' is you passing on a job ("Not for me"). The employer saying no is
- * 'turned_down', a separate thing that belongs to the pipeline, not the inbox.
+ * 'rejected' is you removing a job ("Not for me", or Remove in the archive). It
+ * is hidden from every list and kept, so a later scan does not add it back. The
+ * employer saying no is 'turned_down', a separate thing that belongs to the pipeline.
  */
 type JobStatus =
   | 'new'
@@ -348,7 +353,7 @@ interface ListJobsOptions {
   offset?: number;
   source?: JobSource;
   status?: JobStatus;
-  /** inbox = new/rejected, archive = saved/applied. Defaults to 'all'. */
+  /** inbox = new, archive = saved/applied and later stages. Defaults to 'all' (removed jobs never show). */
   view?: JobView;
   minScore?: number;
   /** not-restricted hides jobs that say you need existing work rights. */

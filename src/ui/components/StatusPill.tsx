@@ -26,7 +26,7 @@ const TITLE: Record<JobStatus, string> = {
   hired: 'Hired — kept indefinitely',
   turned_down: 'The employer said no — kept indefinitely',
   withdrawn: 'You withdrew — kept indefinitely',
-  rejected: 'You passed on it — expires with the inbox',
+  rejected: 'Removed — hidden, and kept so a scan does not add it back',
 };
 
 /** Board names are stored lowercase; "Linkedin" is not how it is spelled. */

@@ -4,9 +4,10 @@ import { decide, displayLabel, FormField } from "./matcher.js"
 /**
  * Reads the form in front of you and fills what the matcher is sure about.
  *
- * It never clicks anything — not Submit, not Next, not a checkbox. Filling is
- * the whole of its reach, so a form can only ever be sent by the person
- * looking at it.
+ * Its only clicks are on a Yes/No radio the profile has an answer for. It never
+ * presses Submit or Next and never ticks a checkbox, so a form can only ever be
+ * sent by the person looking at it. (Stepping through LinkedIn's Easy Apply
+ * popup is `flow.ts`'s job, and it never presses Submit either.)
  */
 
 const FIELD_TIMEOUT_MS = 3_000
@@ -28,12 +29,32 @@ export interface FillReport {
  * gets filled is how a form decides it is talking to a bot. File inputs are the
  * exception to "visible", since sites hide them behind an Attach button.
  *
- * Radios and checkboxes are not read at all; consent boxes and demographic
- * questions are a person's to answer.
+ * Radio buttons are read a group at a time, as one field whose options are the
+ * buttons' labels. Checkboxes are not read at all; consent boxes and
+ * demographic questions are a person's to answer.
+ *
+ * With `within`, only the dialog holding a button that matches that selector is
+ * read, so a form behind a popup is left alone.
  */
-function readFields(frame: Frame): Promise<FormField[]> {
-  return frame.evaluate(() => {
+function readFields(frame: Frame, within: string | undefined): Promise<FormField[]> {
+  return frame.evaluate((within) => {
     const clean = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim().slice(0, 200)
+
+    /** Every match under `root`, open shadow roots included — LinkedIn's popup can live in one. */
+    const deepAll = (root: ParentNode, selector: string): Element[] => {
+      const found = Array.from(root.querySelectorAll(selector))
+      root.querySelectorAll('*').forEach(node => {
+        if (node.shadowRoot) found.push(...deepAll(node.shadowRoot, selector))
+      })
+      return found
+    }
+
+    let scope: ParentNode = document
+    if (within) {
+      const anchor = deepAll(document, within)[0]
+      if (!anchor) return []
+      scope = anchor.closest('.jobs-easy-apply-modal, dialog, [role=dialog]') ?? (anchor.getRootNode() as ParentNode)
+    }
 
     const isVisible = (el: Element) => {
       const rect = el.getBoundingClientRect()
@@ -57,14 +78,17 @@ function readFields(frame: Frame): Promise<FormField[]> {
       const aria = clean(el.getAttribute('aria-label'))
       if (aria) return aria
 
+      // A label lives in the same tree as its control, which inside a shadow root is not `document`.
+      const root = el.getRootNode() as Document | ShadowRoot
+
       const labelledBy = el.getAttribute('aria-labelledby')
       if (labelledBy) {
-        const text = clean(labelledBy.split(/\s+/).map(id => document.getElementById(id)?.textContent ?? '').join(' '))
+        const text = clean(labelledBy.split(/\s+/).map(id => root.getElementById(id)?.textContent ?? '').join(' '))
         if (text) return text
       }
 
       if (el.id) {
-        const forLabel = document.querySelector(`label[for="${CSS.escape(el.id)}"]`)
+        const forLabel = root.querySelector(`label[for="${CSS.escape(el.id)}"]`)
         if (forLabel && textOf(forLabel)) return textOf(forLabel)
       }
 
@@ -85,12 +109,12 @@ function readFields(frame: Frame): Promise<FormField[]> {
       return clean(el.getAttribute('placeholder') || el.getAttribute('name') || el.id)
     }
 
-    const skipTypes = ['hidden', 'password', 'submit', 'button', 'reset', 'image', 'checkbox', 'radio']
+    const skipTypes = ['hidden', 'password', 'submit', 'button', 'reset', 'image', 'checkbox']
     const fields: FormField[] = []
+    const radioGroups = new Map<unknown, HTMLInputElement[]>()
 
-    const controls = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-      'input, textarea, select'
-    )
+    const controls = deepAll(scope, 'input, textarea, select') as
+      (HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement)[]
 
     controls.forEach(el => {
       const tag = el.tagName.toLowerCase() as FormField['tag']
@@ -98,6 +122,12 @@ function readFields(frame: Frame): Promise<FormField[]> {
       if (skipTypes.includes(type)) return
       if ((el as HTMLInputElement).disabled || (el as HTMLInputElement).readOnly) return
       if (type !== 'file' && !isVisible(el)) return
+
+      if (type === 'radio') {
+        const key = el.closest('fieldset') ?? ((el as HTMLInputElement).name || el)
+        radioGroups.set(key, [...(radioGroups.get(key) ?? []), el as HTMLInputElement])
+        return
+      }
 
       const id = String(fields.length)
       el.setAttribute('data-jc-field', id)
@@ -123,8 +153,32 @@ function readFields(frame: Frame): Promise<FormField[]> {
       })
     })
 
+    // A group of radios is one question. Each button is tagged "<field id>.<option index>".
+    radioGroups.forEach((radios, key) => {
+      const id = String(fields.length)
+      const optionLabel = (radio: HTMLInputElement) => {
+        const label = radio.labels?.[0]
+        return (label && textOf(label)) || clean(radio.getAttribute('aria-label') || radio.value)
+      }
+      const question = key instanceof Element ? key.querySelector('legend') : null
+      const checked = radios.find(radio => radio.checked)
+
+      radios.forEach((radio, index) => radio.setAttribute('data-jc-field', `${id}.${index}`))
+
+      fields.push({
+        id,
+        tag: 'radio',
+        type: 'radio',
+        label: question ? textOf(question) : '',
+        autocomplete: '',
+        required: radios.some(radio => radio.required || radio.getAttribute('aria-required') === 'true'),
+        value: checked ? optionLabel(checked) : '',
+        options: radios.map(optionLabel),
+      })
+    })
+
     return fields
-  })
+  }, within)
 }
 
 /** Whether the control still holds something — read back from the page, not from what we sent. */
@@ -132,6 +186,7 @@ function holdsValue(target: Locator): Promise<boolean> {
   return target.evaluate(el => {
     if (el instanceof HTMLSelectElement) return el.selectedIndex > 0
     const input = el as HTMLInputElement
+    if (input.type === 'radio') return input.checked
     return input.type === 'file' ? (input.files?.length ?? 0) > 0 : input.value !== ''
   }).catch(() => false)
 }
@@ -148,21 +203,33 @@ function leaveUnfilled(report: FillReport, field: FormField) {
   else report.skipped++
 }
 
-export async function fillPage(page: Page, profile: Profile, resumePath: string | null): Promise<FillReport> {
+export async function fillPage(
+  page: Page,
+  profile: Profile,
+  resumePath: string | null,
+  within?: string,
+): Promise<FillReport> {
   const report: FillReport = { filled: [], needsYou: [], skipped: 0 }
   const attempted: { field: FormField; target: Locator }[] = []
 
   for (const frame of page.frames()) {
     // A frame can detach mid-read (an ad, a redirect); losing it is not losing the page.
-    const fields = await readFields(frame).catch(() => [] as FormField[])
+    const fields = await readFields(frame, within).catch(() => [] as FormField[])
 
     for (const field of fields) {
       const action = decide(field, profile)
-      const target = frame.locator(`[data-jc-field="${field.id}"]`)
+      let target = frame.locator(`[data-jc-field="${field.id}"]`)
       let sent = false
 
       try {
-        if (action?.kind === 'text') {
+        if (action?.kind === 'option' && field.tag === 'radio') {
+          // Radios are usually restyled, so press the label the way a click would.
+          target = frame.locator(`[data-jc-field="${field.id}.${field.options.indexOf(action.option)}"]`)
+          await target.evaluate(el => ((el as HTMLInputElement).labels?.[0] ?? (el as HTMLElement)).click(), undefined, {
+            timeout: FIELD_TIMEOUT_MS,
+          })
+          sent = true
+        } else if (action?.kind === 'text') {
           await target.fill(action.value, { timeout: FIELD_TIMEOUT_MS })
           sent = true
         } else if (action?.kind === 'option') {
