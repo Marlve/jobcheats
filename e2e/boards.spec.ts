@@ -8,8 +8,8 @@ import {
 
 test('every board in the union has been given a default', () => {
   // The Record type already forces this at compile time; the test is here so a
-  // board added to JobSource with a hasty `as any` still trips something.
-  expect(configuredSources().sort()).toEqual(['linkedin', 'seek']);
+  // board added to BoardSource with a hasty `as any` still trips something.
+  expect(configuredSources().sort()).toEqual(['japandev', 'linkedin', 'seek']);
 });
 
 test('Seek starts off until its scraper has been run for real', () => {

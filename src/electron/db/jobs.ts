@@ -1,15 +1,18 @@
 import fs from 'fs'
 import { db, dbPath, withTransaction } from "./schema.js"
 import { ARCHIVED_STATUSES, INBOX_STATUSES, RETENTION_DAYS } from "../config.js"
+import { classifyVisa } from "../services/visa.js"
 
 // ---------- statements ----------
 
 const upsertJobStmt = db.prepare(`
   INSERT INTO jobs
-    (source, job_id, url, title, company, location, about_text, posted_at, salary, work_type, run_id)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (source, job_id, url, title, company, location, about_text, posted_at, salary, work_type, run_id, visa, visa_evidence)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT (source, job_id) DO UPDATE SET
     last_seen_at = CURRENT_TIMESTAMP,
+    visa         = excluded.visa,
+    visa_evidence = excluded.visa_evidence,
     url          = COALESCE(excluded.url, jobs.url),
     posted_at    = COALESCE(excluded.posted_at, jobs.posted_at),
     salary       = COALESCE(excluded.salary, jobs.salary),
@@ -21,10 +24,14 @@ const jobExistsStmt = db.prepare(
 )
 
 const updateStatusStmt = db.prepare('UPDATE jobs SET status = ? WHERE id = ?')
+const insertEventStmt = db.prepare('INSERT INTO job_events (job_id, status) VALUES (?, ?)')
+const jobStatusStmt = db.prepare('SELECT status FROM jobs WHERE id = ?')
+const hasEventStmt = db.prepare('SELECT 1 AS hit FROM job_events WHERE job_id = ? LIMIT 1')
 const updateNotesStmt = db.prepare('UPDATE jobs SET notes = ? WHERE id = ?')
 const updateMatchStmt = db.prepare(
   'UPDATE jobs SET match_score = ?, matched_keywords = ? WHERE id = ?'
 )
+const updateVisaStmt = db.prepare('UPDATE jobs SET visa = ?, visa_evidence = ? WHERE id = ?')
 
 // ---------- row mapping ----------
 
@@ -45,6 +52,8 @@ type JobRecord = {
   work_type: string | null
   run_id: number | null
   notes: string | null
+  visa: string | null
+  visa_evidence: string | null
   first_seen_at: string
   last_seen_at: string
 }
@@ -77,6 +86,9 @@ function toJobRow(record: JobRecord): JobRow {
     workType: record.work_type as WorkType | null,
     runId: record.run_id,
     notes: record.notes,
+    // A row not yet classified reads as "no signal" rather than as an error.
+    visa: (record.visa ?? 'none') as VisaKind,
+    visaEvidence: parseKeywords(record.visa_evidence),
     firstSeenAt: record.first_seen_at,
     lastSeenAt: record.last_seen_at,
   }
@@ -116,6 +128,12 @@ function buildFilter(options: ListJobsOptions) {
   if (options.minScore !== undefined) {
     clauses.push('match_score >= ?')
     values.push(options.minScore)
+  }
+  // Unclassified rows (NULL) are not restricted — nothing says they are.
+  if (options.visa === 'not-restricted') {
+    clauses.push("(visa IS NULL OR visa != 'restricted')")
+  } else if (options.visa === 'sponsors') {
+    clauses.push("visa = 'sponsors'")
   }
   if (options.search?.trim()) {
     clauses.push('(title LIKE ? OR company LIKE ? OR about_text LIKE ?)')
@@ -250,6 +268,7 @@ export function getDbStats(): DbStats {
 /** Returns true when the job was new, false when it already existed. */
 export function insertJob(job: Job, runId: number | null = null): boolean {
   const isNew = !jobExists(job.source, job.jobId)
+  const visa = classifyVisa(job.aboutText)
 
   upsertJobStmt.run(
     job.source,
@@ -262,15 +281,54 @@ export function insertJob(job: Job, runId: number | null = null): boolean {
     job.postedAt,
     job.salary,
     job.workType,
-    runId
+    runId,
+    visa.kind,
+    JSON.stringify(visa.evidence)
   )
 
   return isNew
 }
 
+/** Rewrites the visa verdict on stored jobs, after the wording rules change. */
+export function setJobVisas(rows: { id: number; kind: VisaKind; evidence: string[] }[]) {
+  withTransaction(() => {
+    for (const row of rows) {
+      updateVisaStmt.run(row.kind, JSON.stringify(row.evidence), row.id)
+    }
+  })
+}
+
 export function updateJobStatus(id: number, status: JobStatus): boolean {
-  const { changes } = updateStatusStmt.run(status, id)
-  return Number(changes) > 0
+  return withTransaction(() => {
+    const before = jobStatusStmt.get(id) as { status: string } | undefined
+    if (!before) return false
+
+    // A job moved before the log existed has no history, so its starting point
+    // is written down first — otherwise "applied, then withdrew" would read as
+    // "never applied".
+    if (!hasEventStmt.get(id)) insertEventStmt.run(id, before.status)
+
+    updateStatusStmt.run(status, id)
+    insertEventStmt.run(id, status)
+    return true
+  })
+}
+
+/** What the pipeline reads: where each saved or applied job is, and where it has been. */
+export function getPipelineRows(): { status: JobStatus; reached: JobStatus[] }[] {
+  const rows = db
+    .prepare(`
+      SELECT j.status AS status, GROUP_CONCAT(DISTINCT e.status) AS reached
+      FROM jobs j LEFT JOIN job_events e ON e.job_id = j.id
+      WHERE j.status IN (${placeholders(ARCHIVED_STATUSES.length)})
+      GROUP BY j.id
+    `)
+    .all(...ARCHIVED_STATUSES) as { status: string; reached: string | null }[]
+
+  return rows.map(row => ({
+    status: row.status as JobStatus,
+    reached: row.reached ? (row.reached.split(',') as JobStatus[]) : [],
+  }))
 }
 
 export function setJobNotes(id: number, notes: string): boolean {

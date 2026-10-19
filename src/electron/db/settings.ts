@@ -28,9 +28,9 @@ function writeSetting(key: string, value: string): void {
 
 // ---------- job boards ----------
 
-const boardKey = (source: JobSource) => `board.${source}.enabled`
+const boardKey = (source: BoardSource) => `board.${source}.enabled`
 
-export function isBoardEnabled(source: JobSource): boolean {
+export function isBoardEnabled(source: BoardSource): boolean {
   return boardEnabledFromStored(source, readSetting(boardKey(source)))
 }
 
@@ -50,7 +50,7 @@ export function listBoardPreferences(): BoardPreference[] {
  * scanner reads. A renderer that got the guard wrong should not be able to
  * leave the scanner with nothing to run.
  */
-export function setBoardEnabled(source: JobSource, enabled: boolean): BoardPreference[] {
+export function setBoardEnabled(source: BoardSource, enabled: boolean): BoardPreference[] {
   const stillOn = configuredSources().filter(other => isBoardEnabled(other))
 
   if (enabled || !isLastEnabledBoard(source, stillOn)) {
@@ -58,6 +58,65 @@ export function setBoardEnabled(source: JobSource, enabled: boolean): BoardPrefe
   }
 
   return listBoardPreferences()
+}
+
+// ---------- scheduled scan ----------
+
+const SCHEDULE_KEY = 'schedule.config'
+
+/** A stored JSON row, or null when there is none or it does not parse. */
+function readJson(key: string): unknown {
+  const raw = readSetting(key)
+  if (!raw) return null
+
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The saved schedule exactly as stored. Unvalidated on purpose: the shape check
+ * belongs with the validators, and a half-written row should read as "no
+ * schedule", not crash the scan that would have used it.
+ */
+export function readStoredSchedule(): unknown {
+  return readJson(SCHEDULE_KEY)
+}
+
+export function writeStoredSchedule(config: ScheduleConfig): void {
+  writeSetting(SCHEDULE_KEY, JSON.stringify(config))
+}
+
+export function deleteStoredSchedule(): void {
+  db.prepare('DELETE FROM settings WHERE key = ?').run(SCHEDULE_KEY)
+}
+
+// ---------- autofill profile ----------
+
+const PROFILE_KEY = 'profile.data'
+
+/** Unvalidated, for the same reason as the schedule above. */
+export function readStoredProfile(): unknown {
+  return readJson(PROFILE_KEY)
+}
+
+export function writeStoredProfile(profile: Profile): void {
+  writeSetting(PROFILE_KEY, JSON.stringify(profile))
+}
+
+// ---------- search history ----------
+
+const SEARCH_HISTORY_KEY = 'search.history'
+
+/** Unvalidated, for the same reason as the schedule above. */
+export function readStoredSearchHistory(): unknown {
+  return readJson(SEARCH_HISTORY_KEY)
+}
+
+export function writeStoredSearchHistory(entries: SearchHistoryEntry[]): void {
+  writeSetting(SEARCH_HISTORY_KEY, JSON.stringify(entries))
 }
 
 // ---------- updates ----------

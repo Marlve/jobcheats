@@ -7,33 +7,53 @@ export const RETENTION_DAYS = 7
  * Statuses exempt from retention. Deleting a job you applied to would destroy
  * your application history, so acting on a job archives it permanently.
  */
-export const ARCHIVED_STATUSES: JobStatus[] = ['saved', 'applied']
+export const ARCHIVED_STATUSES: JobStatus[] = [
+  'saved',
+  'applied',
+  'interview',
+  'offer',
+  'hired',
+  'turned_down',
+  'withdrawn',
+]
 export const INBOX_STATUSES: JobStatus[] = ['new', 'rejected']
 
 /** A job at or above this score counts as a strong match. */
 export const MATCH_THRESHOLD = 60
 
-/** Per-board cap for a single run. */
-export const MAX_JOBS_PER_BOARD = 50
+/** Per-board cap for a single run, across all of its locations. */
+export const MAX_JOBS_PER_BOARD = 100
 
 /**
  * Which boards a scan runs when you have never said otherwise.
  *
- * Being a Record over JobSource rather than a list is the point: adding a board
+ * Being a Record over BoardSource rather than a list is the point: adding a board
  * to the union will not compile until someone decides whether it starts on.
  *
- * Seek starts off. Its scraper is written but has never been run against the
- * live site, so leaving it on would put unproven selectors in front of every
- * scan before anyone has watched one work. Turn it on from Settings.
+ * Seek and Japan Dev start off. Seek's scraper is newer and drives a browser
+ * through a site that changes; Japan Dev is only useful if you are looking at
+ * jobs in Japan, and its first scan opens a page per matching posting. Turn
+ * either on from Settings.
  */
-export const BOARD_ENABLED_BY_DEFAULT: Record<JobSource, boolean> = {
+export const BOARD_ENABLED_BY_DEFAULT: Record<BoardSource, boolean> = {
   linkedin: true,
   seek: false,
+  japandev: false,
+}
+
+/**
+ * Where to send someone to sign in to a board, for the boards that need it.
+ *
+ * Partial rather than a Record because most boards need nothing: Seek reads
+ * without an account, and a board with no entry simply has no Sign in button.
+ */
+export const SIGN_IN_URL: Partial<Record<BoardSource, string>> = {
+  linkedin: 'https://www.linkedin.com/login',
 }
 
 /** The configured boards, in the order they are declared above. */
-export function configuredSources(): JobSource[] {
-  return Object.keys(BOARD_ENABLED_BY_DEFAULT) as JobSource[]
+export function configuredSources(): BoardSource[] {
+  return Object.keys(BOARD_ENABLED_BY_DEFAULT) as BoardSource[]
 }
 
 /**
@@ -44,7 +64,7 @@ export function configuredSources(): JobSource[] {
  * "no". That is what lets a board be added to the app with a default here and
  * no row written anywhere.
  */
-export function boardEnabledFromStored(source: JobSource, stored: string | null): boolean {
+export function boardEnabledFromStored(source: BoardSource, stored: string | null): boolean {
   if (stored === null) return BOARD_ENABLED_BY_DEFAULT[source] ?? false
   return stored === '1'
 }
@@ -56,12 +76,23 @@ export function boardEnabledFromStored(source: JobSource, stored: string | null)
  * means to be in — it is a scan that silently does nothing, discovered at the
  * point where you had already committed to running it.
  */
-export function isLastEnabledBoard(source: JobSource, enabled: JobSource[]): boolean {
+export function isLastEnabledBoard(source: BoardSource, enabled: BoardSource[]): boolean {
   return enabled.length === 1 && enabled[0] === source
 }
 
+/** A feed or page read over plain HTTP that has not answered by now is not going to. */
+export const FEED_REQUEST_TIMEOUT_MS = 30_000
+
 /** The app is a daily tool — anything older than this is noise. */
 export const DEFAULT_DATE_POSTED: DatePosted = '24h'
+
+// ---------- scheduled scan ----------
+
+/** The launch argument that means "run the saved scan, then leave" — see main.ts. */
+export const SCAN_FLAG = '--scan'
+
+/** What a saved schedule is registered as in Windows Task Scheduler. */
+export const SCHEDULE_TASK_NAME = 'JobCheats daily scan'
 
 // ---------- updates ----------
 

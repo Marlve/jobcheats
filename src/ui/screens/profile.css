@@ -1,0 +1,26 @@
+/* Profile — what application forms get filled with. */
+
+.profile__copy {
+  margin-top: 6px;
+  max-width: 720px;
+}
+
+.profile__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+  margin-top: 16px;
+}
+
+.profile__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+@media (max-width: 720px) {
+  .profile__grid {
+    grid-template-columns: 1fr;
+  }
+}

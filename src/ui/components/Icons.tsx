@@ -24,6 +24,10 @@ export const IconInsights = (p: IconProps) => (
   <Svg {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></Svg>
 );
 
+export const IconPipeline = (p: IconProps) => (
+  <Svg {...p}><path d="M3 6h5c4 0 4 6 8 6h5M3 18h5c4 0 4-6 8-6M16 12c2 0 3-6 5-6" /></Svg>
+);
+
 export const IconInbox = (p: IconProps) => (
   <Svg {...p}><rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M2.5 12h5l1.5 2.5h6L16.5 12h5" /></Svg>
 );
@@ -100,4 +104,8 @@ export const IconPlus = (p: IconProps) => (
    icon turned around. */
 export const IconDownload = (p: IconProps) => (
   <Svg {...p}><path d="M12 3v12M7.5 10.5 12 15l4.5-4.5M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17" /></Svg>
+);
+
+export const IconUser = (p: IconProps) => (
+  <Svg {...p}><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.8-3.6 3.7-5.5 7-5.5s6.2 1.9 7 5.5" /></Svg>
 );

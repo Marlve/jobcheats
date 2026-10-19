@@ -1,8 +1,10 @@
 import { ipcMain, IpcMainInvokeEvent, WebContents } from "electron";
 import { listBoards, setBoard, websiteService } from "../services/websiteService.js";
+import { signInService } from "../services/signInService.js";
+import { recordSearch } from "../services/searchHistory.js";
 import {
   validateBoolean,
-  validateJobSource,
+  validateBoardSource,
   validateSearchParams,
   ValidationError,
 } from "./validate.js";
@@ -10,7 +12,7 @@ import {
 export const SCRAPE_PROGRESS_CHANNEL = "scrape:progress"
 
 /** Progress is fire-and-forget; a closed window must not break the scrape. */
-function progressReporter(sender: WebContents) {
+export function progressReporter(sender: WebContents) {
   return (progress: ScrapeProgress) => {
     if (sender.isDestroyed()) return
     sender.send(SCRAPE_PROGRESS_CHANNEL, progress)
@@ -34,6 +36,10 @@ export function registerWebsiteIPC() {
       return [{ ok: false, source: 'linkedin', runId: null, error: parsed.error }]
     }
 
+    // Recorded when it is run, not when it is typed, so the list holds searches
+    // that were actually used. A scheduled run goes through another door.
+    recordSearch(parsed.params)
+
     return websiteService.scrapeAll(parsed.params, progressReporter(event.sender))
   });
 
@@ -41,9 +47,15 @@ export function registerWebsiteIPC() {
 
   ipcMain.handle("listBoards", (): BoardPreference[] => listBoards());
 
+  // Stays pending for as long as the sign-in window is open — the renderer is
+  // waiting on the window being closed, not on anything being checked.
+  ipcMain.handle("signIn", (_event, rawSource: unknown): Promise<SignInResult> => {
+    return signInService.signIn(validateBoardSource(rawSource))
+  });
+
   // Returns the whole list, not a flag — setBoardEnabled refuses to turn off
   // the last board, and the renderer needs to see that it was refused.
   ipcMain.handle("setBoardEnabled", (_event, rawSource: unknown, rawEnabled: unknown): BoardPreference[] => {
-    return setBoard(validateJobSource(rawSource), validateBoolean(rawEnabled, 'enabled'))
+    return setBoard(validateBoardSource(rawSource), validateBoolean(rawEnabled, 'enabled'))
   });
 }

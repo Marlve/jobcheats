@@ -43,6 +43,22 @@ electron.contextBridge.exposeInMainWorld("electron", {
   setBoardEnabled: (source: JobSource, enabled: boolean) =>
     electron.ipcRenderer.invoke("setBoardEnabled", source, enabled),
 
+  signIn: (source: JobSource) => electron.ipcRenderer.invoke("signIn", source),
+
+  // ---- autofill ----
+  getProfile: () => electron.ipcRenderer.invoke("getProfile"),
+
+  saveProfile: (profile: Profile) => electron.ipcRenderer.invoke("saveProfile", profile),
+
+  autofill: (url: string) => electron.ipcRenderer.invoke("autofill", url),
+
+  // ---- scheduled scan ----
+  getSchedule: () => electron.ipcRenderer.invoke("getSchedule"),
+
+  saveSchedule: (config: ScheduleConfig) => electron.ipcRenderer.invoke("saveSchedule", config),
+
+  clearSchedule: () => electron.ipcRenderer.invoke("clearSchedule"),
+
   // ---- updates ----
   getUpdateStatus: () => electron.ipcRenderer.invoke("getUpdateStatus"),
 
@@ -58,6 +74,16 @@ electron.contextBridge.exposeInMainWorld("electron", {
     electron.ipcRenderer.on("update:status", listener)
     return () => electron.ipcRenderer.off("update:status", listener)
   },
+
+  // ---- pipeline ----
+  getPipeline: () => electron.ipcRenderer.invoke("getPipeline"),
+
+  // ---- search history ----
+  listSearchHistory: () => electron.ipcRenderer.invoke("listSearchHistory"),
+
+  removeSearchHistory: (id: string) => electron.ipcRenderer.invoke("removeSearchHistory", id),
+
+  clearSearchHistory: () => electron.ipcRenderer.invoke("clearSearchHistory"),
 
   // ---- jobs ----
   listJobs: (options?: ListJobsOptions) => electron.ipcRenderer.invoke("listJobs", options),

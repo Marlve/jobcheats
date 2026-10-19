@@ -3,17 +3,21 @@ import {
   IconInbox,
   IconInsights,
   IconLock,
+  IconPipeline,
   IconScan,
   IconSettings,
+  IconUser,
 } from './Icons';
 
-export type Route = 'insights' | 'inbox' | 'archive' | 'scan' | 'settings' | 'resume';
+export type Route = 'insights' | 'inbox' | 'archive' | 'pipeline' | 'scan' | 'profile' | 'settings' | 'resume';
 
 const NAV: { route: Route; label: string; Icon: (p: { size?: number }) => React.JSX.Element }[] = [
   { route: 'insights', label: 'Insights', Icon: IconInsights },
   { route: 'inbox', label: 'Inbox', Icon: IconInbox },
   { route: 'archive', label: 'Archive', Icon: IconArchive },
+  { route: 'pipeline', label: 'Pipeline', Icon: IconPipeline },
   { route: 'scan', label: 'Daily scan', Icon: IconScan },
+  { route: 'profile', label: 'Profile', Icon: IconUser },
   { route: 'settings', label: 'Settings', Icon: IconSettings },
 ];
 
@@ -27,7 +31,16 @@ export function Sidebar({
   return (
     <nav className="sidebar">
       <div className="sidebar__brand">
-        <span className="sidebar__mark" aria-hidden="true" />
+        <svg className="sidebar__mark" viewBox="0 0 1024 1024" aria-hidden="true">
+          <rect width="1024" height="1024" rx="232" />
+          <path
+            d="M676 258 L548 640 Q520 712 450 712 Q372 712 336 630"
+            fill="none"
+            strokeWidth="104"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
         <span className="t-title sidebar__label">JobCheats</span>
       </div>
 

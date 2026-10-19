@@ -36,7 +36,34 @@ interface Window {
      * last enabled board cannot be turned off, so check the result rather than
      * assuming the change took.
      */
-    setBoardEnabled: (source: JobSource, enabled: boolean) => Promise<BoardPreference[]>;
+    setBoardEnabled: (source: BoardSource, enabled: boolean) => Promise<BoardPreference[]>;
+
+    /**
+     * Opens an ordinary browser at the board's sign-in page, using the profile
+     * scans use. Resolves when that window is closed, which can be minutes.
+     */
+    signIn: (source: BoardSource) => Promise<SignInResult>;
+
+    // ---- autofill ----
+    getProfile: () => Promise<Profile>;
+
+    saveProfile: (profile: Profile) => Promise<Profile>;
+
+    /**
+     * First call opens the job in a visible browser; later calls fill whatever
+     * form is in its front tab. Never submits.
+     */
+    autofill: (url: string) => Promise<AutofillResult>;
+
+    // ---- scheduled scan ----
+
+    /** Where the saved schedule stands, including whether its Windows task exists. */
+    getSchedule: () => Promise<ScheduleStatus>;
+
+    /** Saves the schedule and registers the Windows task. Check `error` on the result. */
+    saveSchedule: (config: ScheduleConfig) => Promise<ScheduleStatus>;
+
+    clearSchedule: () => Promise<ScheduleStatus>;
 
     // ---- updates ----
 
@@ -53,6 +80,18 @@ interface Window {
 
     /** Fires when the launch check lands after the renderer has already asked. */
     subscribeUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
+
+    // ---- pipeline ----
+
+    /** Where every saved or applied job ended up, as the flows of a Sankey diagram. */
+    getPipeline: () => Promise<PipelineGraph>;
+
+    // ---- search history ----
+    listSearchHistory: () => Promise<SearchHistoryEntry[]>;
+
+    removeSearchHistory: (id: string) => Promise<SearchHistoryEntry[]>;
+
+    clearSearchHistory: () => Promise<SearchHistoryEntry[]>;
 
     // ---- jobs ----
     listJobs: (options?: ListJobsOptions) => Promise<JobRow[]>;
@@ -99,12 +138,110 @@ interface Window {
 
 // ---------- jobs ----------
 
-type JobSource = 'linkedin' | 'seek'
+/** A job board a scan can read. These are the ones with a Settings toggle. */
+type BoardSource = 'linkedin' | 'seek' | 'japandev'
+
+/** Where a job came from. */
+type JobSource = BoardSource
 
 /** A board and whether a scan will run it. */
 interface BoardPreference {
-  source: JobSource;
+  source: BoardSource;
   enabled: boolean;
+}
+
+/** `ok` means the window was opened and has since been closed, not that anyone signed in. */
+type SignInResult = { ok: true } | { ok: false; error: string }
+
+// ---------- autofill ----------
+
+type YesNo = 'yes' | 'no' | ''
+
+/** What gets typed into application forms. An empty field is left for you. */
+interface Profile {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  /** As you would type it into a "Location" box. */
+  location: string;
+  linkedin: string;
+  github: string;
+  website: string;
+  salary: string;
+  /** '' is unanswered, and an unanswered question is never guessed. */
+  workAuthorized: YesNo;
+  needsSponsorship: YesNo;
+}
+
+type AutofillResult =
+  | { ok: true; stage: 'opened' }
+  | {
+      ok: true;
+      stage: 'filled';
+      filled: string[];
+      /** Required fields still empty after filling. */
+      needsYou: string[];
+      /** Other fields that were left alone. */
+      skipped: number;
+    }
+  | { ok: false; error: string }
+
+// ---------- search history ----------
+
+/** A search that was run from the Daily scan screen. */
+interface SearchHistoryEntry {
+  /** Same search, same id — running it again moves it to the top instead of adding a copy. */
+  id: string;
+  search: SearchParams;
+  lastRunAt: string;
+}
+
+// ---------- pipeline ----------
+
+type PipelineTone = 'neutral' | 'info' | 'warn' | 'success' | 'danger' | 'muted'
+
+interface PipelineNode {
+  id: string;
+  label: string;
+  /** Column, left to right. */
+  rank: number;
+  tone: PipelineTone;
+  value: number;
+}
+
+interface PipelineLink {
+  source: string;
+  target: string;
+  value: number;
+}
+
+interface PipelineGraph {
+  nodes: PipelineNode[];
+  links: PipelineLink[];
+  /** Jobs that were saved or applied to. Zero means there is nothing to draw. */
+  total: number;
+}
+
+// ---------- scheduled scan ----------
+
+/** A search to run by itself once a day. */
+interface ScheduleConfig {
+  /** 24-hour local time, "HH:MM". */
+  time: string;
+  search: SearchParams;
+}
+
+interface ScheduleStatus {
+  /** False where no Windows task can be registered — see `unsupportedReason`. */
+  supported: boolean;
+  unsupportedReason: string | null;
+  /** Null means nothing is scheduled. */
+  config: ScheduleConfig | null;
+  /** Whether the Windows task is really there. `config` outlives a task someone deleted. */
+  taskInstalled: boolean;
+  /** Why the last attempt to change the task failed, in plain words. */
+  error: string | null;
 }
 
 // ---------- updates ----------
@@ -138,7 +275,20 @@ interface UpdateStatus {
   dismissedVersion: string | null;
 }
 
-type JobStatus = 'new' | 'saved' | 'applied' | 'rejected'
+/**
+ * 'rejected' is you passing on a job ("Not for me"). The employer saying no is
+ * 'turned_down', a separate thing that belongs to the pipeline, not the inbox.
+ */
+type JobStatus =
+  | 'new'
+  | 'saved'
+  | 'applied'
+  | 'interview'
+  | 'offer'
+  | 'hired'
+  | 'turned_down'
+  | 'withdrawn'
+  | 'rejected'
 
 type WorkType = 'remote' | 'hybrid' | 'onsite'
 
@@ -173,11 +323,20 @@ interface Job {
   workType: WorkType | null
 }
 
+/**
+ * What a posting's wording says about work rights. 'none' means it is silent,
+ * which is not the same as saying you would be sponsored — or refused.
+ */
+type VisaKind = 'sponsors' | 'restricted' | 'mixed' | 'none'
+
 interface JobRow extends Job {
   id: number,
   status: JobStatus,
   matchScore: number | null,
   matchedKeywords: string[],
+  visa: VisaKind,
+  /** The phrases the verdict rests on, as written in the posting. */
+  visaEvidence: string[],
   notes: string | null,
   runId: number | null,
   firstSeenAt: string,
@@ -192,6 +351,8 @@ interface ListJobsOptions {
   /** inbox = new/rejected, archive = saved/applied. Defaults to 'all'. */
   view?: JobView;
   minScore?: number;
+  /** not-restricted hides jobs that say you need existing work rights. */
+  visa?: 'not-restricted' | 'sponsors';
   sortBy?: 'score' | 'date' | 'company';
   /** Case-insensitive substring match over title, company and description. */
   search?: string;

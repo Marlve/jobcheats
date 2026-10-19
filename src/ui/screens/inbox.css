@@ -152,3 +152,46 @@
     margin-left: 0;
   }
 }
+
+/* ---------- autofill result ---------- */
+
+.job__autofill {
+  margin: 12px 0 0 66px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-subtle);
+}
+
+.job__autofill p + p {
+  margin-top: 6px;
+}
+
+.job__autofill--error {
+  color: var(--status-danger);
+}
+
+/* ---------- visa wording ---------- */
+
+.visa-chip {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--caption-size);
+  color: var(--text-primary);
+  cursor: help;
+}
+
+.visa-chip--sponsors {
+  border-color: var(--status-positive-border);
+}
+
+.visa-chip--restricted {
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-surface);
+}
+
+.visa-chip--mixed {
+  border-color: var(--status-warning-border);
+  background: var(--status-warning-surface);
+}

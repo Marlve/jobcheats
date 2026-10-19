@@ -5,6 +5,8 @@ import { WindowControls } from './components/WindowControls';
 import { ResumeScreen } from './screens/ResumeScreen';
 import { InboxScreen } from './screens/InboxScreen';
 import { ScanScreen } from './screens/ScanScreen';
+import { PipelineScreen } from './screens/PipelineScreen';
+import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import './App.css';
 
@@ -47,7 +49,9 @@ function App() {
         {/* Inbox and archive are the same list over a different slice. */}
         {route === 'inbox' && <InboxScreen key="inbox" view="inbox" />}
         {route === 'archive' && <InboxScreen key="archive" view="archive" />}
+        {route === 'pipeline' && <PipelineScreen />}
         {route === 'scan' && <ScanScreen />}
+        {route === 'profile' && <ProfileScreen />}
         {route === 'settings' && <SettingsScreen />}
       </main>
 

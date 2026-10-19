@@ -9,19 +9,23 @@ import {
   IconStop,
   IconWarning,
 } from '../components/Icons';
+import { ScheduleCard } from '../components/ScheduleCard';
 import { Select } from '../components/Select';
+import { SearchHistory } from '../components/SearchHistory';
 import { SOURCE_LABEL } from '../components/StatusPill';
 import { formatDateTime } from '../format';
 import './scan.css';
 
 /**
- * The app is a daily tool and the inbox only keeps jobs for 7 days, so a month
- * of postings would mostly be listings that expire before you act on them.
- * 'month' is still a valid DatePosted for the scraper — it just isn't offered.
+ * The app is a daily tool and the inbox only keeps jobs for 7 days, so 24h stays
+ * the default. 'month' is for a first scan: the retention clock starts when a
+ * job is first seen, not when it was posted, so a month-old posting still gets
+ * its full week to be acted on.
  */
 const DATE_POSTED: { value: DatePosted; label: string }[] = [
   { value: '24h', label: 'Last 24h' },
   { value: 'week', label: 'This week' },
+  { value: 'month', label: 'This month' },
 ];
 
 const JOB_TYPES: { value: JobType; label: string }[] = [
@@ -34,8 +38,9 @@ const MAX_JOBS = [10, 25, 50].map((n) => ({ value: n, label: `Up to ${n} jobs` }
 
 /** "LinkedIn and Seek" — read as a sentence rather than comma-spliced. */
 function joinNames(names: string[]): string {
-  if (names.length < 2) return names[0] ?? '';
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return names.length < 2
+    ? names[0] ?? ''
+    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
 const PHASE_LABEL: Record<ScrapePhase, string> = {
@@ -81,20 +86,23 @@ export function ScanScreen() {
   const [keywordCount, setKeywordCount] = useState(0);
   // null until read, so the header does not flash "no boards" on the way in.
   const [boards, setBoards] = useState<BoardPreference[] | null>(null);
+  const [history, setHistory] = useState<SearchHistoryEntry[]>([]);
 
   // Boards are read on mount rather than held anywhere shared: this screen is
   // unmounted while you are in Settings, so coming back re-reads them.
   useEffect(() => {
     void (async () => {
-      const [words, resume, history, boardList] = await Promise.all([
+      const [words, resume, recent, boardList, past] = await Promise.all([
         window.electron.listKeywords(),
         window.electron.getResume(),
         window.electron.listRuns(8),
         window.electron.listBoards(),
+        window.electron.listSearchHistory(),
       ]);
       setKeywordCount(words.filter((word) => word.enabled).length);
       setHasResume(Boolean(resume));
-      setRuns(history);
+      setRuns(recent);
+      setHistory(past);
       setBoards(boardList);
     })();
   }, []);
@@ -107,22 +115,37 @@ export function ScanScreen() {
     return () => unsubscribe.current?.();
   }, []);
 
+  // The form as a search, or null until there is a term to search for. Shared
+  // by Run scan and the scheduled scan so the two cannot drift apart.
+  const search: SearchParams | null = term
+    ? { keywords: [term], location: locations, datePosted, jobType, maxJobs }
+    : null;
+
   async function run() {
+    if (!search) return;
+
     setRunning(true);
     setResults(null);
     setProgress(null);
 
-    const outcome = await window.electron.scrapeAll({
-      keywords: [term],
-      location: locations,
-      datePosted,
-      jobType,
-      maxJobs,
-    });
+    const outcome = await window.electron.scrapeAll(search);
 
     setResults(outcome);
     setRunning(false);
     setRuns(await window.electron.listRuns(8));
+    setHistory(await window.electron.listSearchHistory());
+  }
+
+  /** Fills the form from an earlier search; running it is still up to you. */
+  function reuse(entry: SearchHistoryEntry) {
+    const { keywords, location, datePosted: when, jobType: type, maxJobs: limit } = entry.search;
+    setTerm(keywords[0] ?? '');
+    setDraft('');
+    setLocations(location);
+    setLocationDraft('');
+    setDatePosted(when ?? '24h');
+    setJobType(type);
+    setMaxJobs(limit ?? 50);
   }
 
   async function cancel() {
@@ -159,7 +182,7 @@ export function ScanScreen() {
     || jobType !== 'full-time' || maxJobs !== 50;
 
   const enabledBoards = (boards ?? []).filter((board) => board.enabled);
-  const boardNames = enabledBoards.map((board) => SOURCE_LABEL[board.source]);
+  const sourceNames = enabledBoards.map((board) => SOURCE_LABEL[board.source]);
   const noBoards = boards !== null && enabledBoards.length === 0;
 
   const canRun = Boolean(term) && enabledBoards.length > 0 && !running;
@@ -175,8 +198,8 @@ export function ScanScreen() {
         <div>
           <h1 className="t-title">Daily scan</h1>
           <p className="t-body t-secondary">
-            {boardNames.length
-              ? `${joinNames(boardNames)}, scored against your resume as jobs come in`
+            {sourceNames.length
+              ? `${joinNames(sourceNames)}, scored against your resume as jobs come in`
               : 'Scored against your resume as jobs come in'}
           </p>
         </div>
@@ -389,6 +412,10 @@ export function ScanScreen() {
           )}
         </div>
 
+        <SearchHistory entries={history} onUse={reuse} onChange={setHistory} />
+
+        <ScheduleCard search={search} />
+
         {/* ---------- history ---------- */}
         {runs.length > 0 && (
           <div className="card">
@@ -396,7 +423,7 @@ export function ScanScreen() {
             <ul className="run-history">
               {runs.map((entry) => (
                 <li key={entry.id} className="run-row">
-                  <span className="run-row__board t-label">{SOURCE_LABEL[entry.source]}</span>
+                  <span className="run-row__board t-label">{SOURCE_LABEL[entry.source] ?? entry.source}</span>
                   <span className="run-row__when t-caption t-muted">
                     {formatDateTime(entry.startedAt)}
                   </span>

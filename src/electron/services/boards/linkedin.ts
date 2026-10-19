@@ -6,6 +6,7 @@ import {
   JobBoardAdapter,
   ScrapeContext,
   ScrapeError,
+  searchStopAt,
   sleep,
 } from "./adapter.js"
 import { extractMetadata, JobMetadata } from "./metadata.js"
@@ -241,14 +242,21 @@ function canReachJobs(page: Page): boolean {
  * sign-in working: LinkedIn drops you on the feed as often as back where you
  * were. So once the auth wall clears, `returnTo` is re-requested and the wait
  * only ends when job links are actually reachable.
+ *
+ * A scheduled run has no one to hand the window to, so it stops here instead:
+ * raising a browser over whatever someone is doing at 8am, then waiting out a
+ * two-minute timeout for a sign-in nobody knows is wanted, helps no one.
  */
-async function ensureAuthenticated(
-  page: Page,
-  token: CancellationToken,
-  report: ScrapeContext['report'],
-  returnTo?: string
-) {
+async function ensureAuthenticated(ctx: ScrapeContext, returnTo?: string) {
+  const { page, token, report, unattended } = ctx
   if (!needsHuman(page)) return
+
+  if (unattended) {
+    throw new ScrapeError(
+      'LinkedIn needs you to sign in again. Open JobCheats and press Sign in under Settings › Job boards; scheduled scans resume after that.',
+      `auth wall during a scheduled run; URL ${page.url()}`
+    )
+  }
 
   // Logged so a window that fails to appear can be told apart from an auth wall
   // that was never noticed — they look identical from the app.
@@ -478,7 +486,7 @@ async function scrapeResultPage(ctx: ScrapeContext, layout: CardLayout, maxJobs:
       await jobCard.click()
       // No returnTo: we are part-way through a result list, and re-requesting
       // the search would throw away the page we have scrolled to.
-      await ensureAuthenticated(page, token, report)
+      await ensureAuthenticated(ctx)
 
       const detail = await waitForJobDetail(page, layout, jobId, previousDetail)
       previousDetail = detail
@@ -577,11 +585,11 @@ async function similarJobsScope(page: Page): Promise<Locator> {
  * from a card, which is the more reliable source of the two.
  */
 async function scrapeJobById(ctx: ScrapeContext, jobId: string): Promise<boolean> {
-  const { page, token, report } = ctx
+  const { page, report } = ctx
 
   const viewUrl = `${BASE_URL}/jobs/view/${jobId}/`
   await page.goto(viewUrl, { waitUntil: 'domcontentloaded' })
-  await ensureAuthenticated(page, token, report, viewUrl)
+  await ensureAuthenticated(ctx, viewUrl)
 
   const detail = page.locator(VIEW_DETAIL_SELECTOR).first()
   await detail.waitFor({ timeout: DETAIL_TIMEOUT_MS }).catch(() => {})
@@ -691,7 +699,9 @@ async function scrapeSimilarJobs(ctx: ScrapeContext, maxJobs: number): Promise<n
 async function scrapeSearchUrl(ctx: ScrapeContext, searchUrl: string): Promise<void> {
   const { page, token, report, params, tally } = ctx
   const maxPages = Math.max(params.maxPages ?? DEFAULT_MAX_PAGES, 1)
-  const maxJobs = Math.max(params.maxJobs ?? DEFAULT_MAX_JOBS, 1)
+  const perSearch = Math.max(params.maxJobs ?? DEFAULT_MAX_JOBS, 1)
+  const maxJobs = searchStopAt(tally, perSearch)
+  if (maxJobs <= tally.inserted) return
 
   // The URL goes to the terminal, not the screen. The query is the readable
   // half of it, and now that it is a sentence it says what is being looked for
@@ -700,16 +710,25 @@ async function scrapeSearchUrl(ctx: ScrapeContext, searchUrl: string): Promise<v
   report({ phase: 'searching', message: query ? `Searching for ${query}` : 'Searching LinkedIn' })
   console.log(`[linkedin] requesting ${searchUrl}`)
   await page.goto(searchUrl, { waitUntil: 'domcontentloaded' })
-  await ensureAuthenticated(page, token, report, searchUrl)
+  await ensureAuthenticated(ctx, searchUrl)
   console.log(`[linkedin] landed on ${page.url()}`)
 
   // A challenge during login can drop us somewhere else; re-request the search.
   if (!page.url().includes('/jobs/search')) {
     await page.goto(searchUrl, { waitUntil: 'domcontentloaded' })
-    await ensureAuthenticated(page, token, report, searchUrl)
+    await ensureAuthenticated(ctx, searchUrl)
   }
 
-  const layout = await detectLayout(page)
+  let layout = await detectLayout(page)
+
+  // The sign-in redirect can fire after the page has loaded, so the check above
+  // saw a fine URL and the wall only appeared while the layout was being looked
+  // for. Without this, a signed-out profile is reported as a site we cannot read.
+  if (!layout && needsHuman(page)) {
+    await ensureAuthenticated(ctx, searchUrl)
+    layout = await detectLayout(page)
+  }
+
   if (!layout) {
     // Two very different situations look identical from here: a search that
     // matched nothing, and a DOM we no longer understand. Try the
@@ -732,7 +751,7 @@ async function scrapeSearchUrl(ctx: ScrapeContext, searchUrl: string): Promise<v
     await scrapeResultPage(ctx, layout, maxJobs)
 
     if (tally.inserted >= maxJobs) {
-      report({ message: `Reached the ${maxJobs} job limit` })
+      report({ message: `Reached the ${perSearch} job limit` })
       return
     }
     if (!await goToNextPage(page, layout, token)) return

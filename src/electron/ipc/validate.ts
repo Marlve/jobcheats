@@ -3,14 +3,27 @@
  * SQL bindings, so every field is checked before use.
  */
 
+import { isScheduleTime } from "../services/scheduleTask.js"
 import { isVersion } from "../services/version.js"
 
 const JOB_TYPES: JobType[] = ['internship', 'full-time', 'part-time']
 const DATES_POSTED: DatePosted[] = ['24h', 'week', 'month']
-const JOB_SOURCES: JobSource[] = ['linkedin', 'seek']
-const JOB_STATUSES: JobStatus[] = ['new', 'saved', 'applied', 'rejected']
+const BOARD_SOURCES: BoardSource[] = ['linkedin', 'seek', 'japandev']
+const JOB_SOURCES: JobSource[] = [...BOARD_SOURCES]
+const JOB_STATUSES: JobStatus[] = [
+  'new',
+  'saved',
+  'applied',
+  'interview',
+  'offer',
+  'hired',
+  'turned_down',
+  'withdrawn',
+  'rejected',
+]
 const JOB_VIEWS: JobView[] = ['inbox', 'archive', 'all']
 const SORT_KEYS: NonNullable<ListJobsOptions['sortBy']>[] = ['score', 'date', 'company']
+const VISA_FILTERS: NonNullable<ListJobsOptions['visa']>[] = ['not-restricted', 'sponsors']
 
 const MAX_TAGS = 20
 const MAX_TAG_LENGTH = 100
@@ -95,6 +108,65 @@ export function validateSearchParams(raw: unknown): SearchParams {
   return params
 }
 
+export function validateScheduleConfig(raw: unknown): ScheduleConfig {
+  const input = asRecord(raw, 'Schedule')
+
+  if (!isScheduleTime(input.time)) {
+    throw new ValidationError('time must be a 24-hour time like 08:00')
+  }
+
+  return { time: input.time, search: validateSearchParams(input.search) }
+}
+
+const MAX_PROFILE_LENGTH = 300
+
+/** Missing fields read as empty, so a profile saved by an older version still loads. */
+export function validateProfile(raw: unknown): Profile {
+  const input = asRecord(raw, 'Profile')
+
+  const text = (key: string): string => {
+    const value = input[key] ?? ''
+    if (typeof value !== 'string') throw new ValidationError(`${key} must be a string`)
+    const trimmed = value.trim()
+    if (trimmed.length > MAX_PROFILE_LENGTH) {
+      throw new ValidationError(`${key} must be ${MAX_PROFILE_LENGTH} characters or fewer`)
+    }
+    return trimmed
+  }
+
+  const yesNo = (key: string): YesNo => asOneOf(input[key] ?? '', ['yes', 'no', ''], key)
+
+  return {
+    firstName: text('firstName'),
+    lastName: text('lastName'),
+    email: text('email'),
+    phone: text('phone'),
+    location: text('location'),
+    linkedin: text('linkedin'),
+    github: text('github'),
+    website: text('website'),
+    salary: text('salary'),
+    workAuthorized: yesNo('workAuthorized'),
+    needsSponsorship: yesNo('needsSponsorship'),
+  }
+}
+
+/** A link on its way into a browser: ordinary web addresses only. */
+export function validateWebUrl(raw: unknown): string {
+  if (typeof raw !== 'string') throw new ValidationError('url must be a string')
+
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    throw new ValidationError('url is not a valid address')
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new ValidationError('url must be an http or https address')
+  }
+  return url.toString()
+}
+
 export function validateListJobsOptions(raw: unknown): ListJobsOptions {
   if (raw === undefined || raw === null) return {}
   const input = asRecord(raw, 'List options')
@@ -111,6 +183,7 @@ export function validateListJobsOptions(raw: unknown): ListJobsOptions {
   if (input.status !== undefined) options.status = asOneOf(input.status, JOB_STATUSES, 'status')
   if (input.view !== undefined) options.view = asOneOf(input.view, JOB_VIEWS, 'view')
   if (input.sortBy !== undefined) options.sortBy = asOneOf(input.sortBy, SORT_KEYS, 'sortBy')
+  if (input.visa !== undefined) options.visa = asOneOf(input.visa, VISA_FILTERS, 'visa')
   if (input.minScore !== undefined) options.minScore = asNumberInRange(input.minScore, 'minScore', 0, 100)
   if (input.search !== undefined) {
     if (typeof input.search !== 'string') throw new ValidationError('search must be a string')
@@ -124,8 +197,13 @@ export function validateJobStatus(raw: unknown): JobStatus {
   return asOneOf(raw, JOB_STATUSES, 'status')
 }
 
-export function validateJobSource(raw: unknown): JobSource {
-  return asOneOf(raw, JOB_SOURCES, 'source')
+export function validateBoardSource(raw: unknown): BoardSource {
+  return asOneOf(raw, BOARD_SOURCES, 'source')
+}
+
+export function validateTextId(raw: unknown): string {
+  if (typeof raw !== 'string' || raw.length > 200) throw new ValidationError('id must be a short piece of text')
+  return raw
 }
 
 export function validateId(raw: unknown): number {

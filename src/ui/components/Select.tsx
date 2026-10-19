@@ -91,21 +91,28 @@ export function Select<T extends string | number>({
     });
   }, [open]);
 
+  // Only once it is visible: the list is hidden until it has been placed, and a
+  // hidden element cannot take focus, so asking earlier left the keys dead.
   useEffect(() => {
-    if (!open) return;
+    if (!open || !box.placed) return;
     listRef.current?.focus();
-  }, [open]);
+  }, [open, box.placed]);
 
   // Scrolling the page underneath an open list would leave it stranded next to
-  // whatever moved into its place.
+  // whatever moved into its place. The list's own scrolling does not count: a
+  // long one scrolls itself to the selected option as it opens, and treating that
+  // as the page moving closed it again before it was seen.
   useEffect(() => {
     if (!open) return;
 
     const dismiss = () => setOpen(false);
-    window.addEventListener('scroll', dismiss, true);
+    const onScroll = (event: Event) => {
+      if (!listRef.current?.contains(event.target as Node)) dismiss();
+    };
+    window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', dismiss);
     return () => {
-      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', dismiss);
     };
   }, [open]);

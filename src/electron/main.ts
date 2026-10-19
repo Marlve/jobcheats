@@ -7,13 +7,37 @@ import { registerWebsiteIPC } from './ipc/website.js';
 import { registerDbIPC } from './ipc/db.js';
 import { registerResumeIPC } from './ipc/resume.js';
 import { registerUpdateIPC, UPDATE_STATUS_CHANNEL } from './ipc/update.js';
+import { registerScheduleIPC } from './ipc/schedule.js';
+import { registerApplyIPC } from './ipc/apply.js';
+import { registerHistoryIPC } from './ipc/history.js';
+import { progressReporter } from './ipc/website.js';
 import { websiteService } from './services/websiteService.js';
 import { reconcileMatches } from './services/matchService.js';
+import { reconcileVisa } from './services/visaService.js';
 import { checkForUpdatesOnLaunch } from './services/updateService.js';
+import { runScheduledScan, syncScheduleTask } from './services/scheduleService.js';
 import { closeDb, pruneOldJobs } from './db/db.js';
+import { SCAN_FLAG } from './config.js';
+
+// A scheduled run is this same app launched with --scan: no window, one scan,
+// then quit.
+const scanOnly = process.argv.includes(SCAN_FLAG);
+
+// One copy of the app at a time. The scanner owns a locked browser profile and
+// a database, so a second copy could only ever fail — better that it hands its
+// launch to the first one, which is what turns "the scheduled scan fired while
+// the app was open" into a scan inside the open app.
+const isPrimary = app.requestSingleInstanceLock();
+if (!isPrimary) app.quit();
 
 app.on("ready", () => {
+  if (!isPrimary) return;
+
   const mainWindow = new BrowserWindow({
+    // Created even for a scheduled run, just never shown: opening the app
+    // mid-scan then only has to reveal it, and the IPC below needs a window to
+    // attach to either way.
+    show: !scanOnly,
     width: 1280,
     height: 860,
     // The layout reflows down to the icon-rail sidebar; below this it just gets
@@ -89,11 +113,39 @@ app.on("ready", () => {
   registerDbIPC()
   registerResumeIPC()
   registerUpdateIPC()
+  registerScheduleIPC()
+  registerApplyIPC()
+  registerHistoryIPC()
+
+  app.on('second-instance', (_event, argv) => {
+    // The scheduled task fired while the app was already open: scan in this
+    // window, with its progress showing, rather than starting a second app.
+    if (argv.includes(SCAN_FLAG)) {
+      void runScheduledScan(progressReporter(mainWindow.webContents))
+      return
+    }
+
+    // Opened again — possibly mid-scan, with the window hidden. Reveal it.
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+  })
 
   // Retention runs on launch as well as after each scan, so an app left closed
   // for a fortnight still opens onto a current inbox.
   pruneOldJobs()
   reconcileMatches()
+  reconcileVisa()
+
+  if (scanOnly) {
+    // Quits only if nobody opened the window while it ran; if they did, this
+    // has quietly become the app and should stay up.
+    void runScheduledScan(progressReporter(mainWindow.webContents)).then(() => {
+      if (!mainWindow.isVisible()) app.quit()
+    })
+  } else {
+    void syncScheduleTask()
+  }
 
   // Deliberately not awaited. The window is already up, the renderer asks for
   // the stored answer on mount, and a slow or unreachable GitHub must not be

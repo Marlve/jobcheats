@@ -94,9 +94,14 @@
   width: 28px;
   height: 28px;
   flex-shrink: 0;
-  border-radius: 8px;
-  background: var(--accent-base);
-  box-shadow: inset 0 0 0 5px var(--bg-surface);
+}
+
+.sidebar__mark rect {
+  fill: var(--accent-base);
+}
+
+.sidebar__mark path {
+  stroke: var(--accent-on);
 }
 
 .sidebar__nav {

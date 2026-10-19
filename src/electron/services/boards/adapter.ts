@@ -1,4 +1,5 @@
 import { Page } from "playwright"
+import { MAX_JOBS_PER_BOARD } from "../../config.js"
 
 export class ScrapeCancelledError extends Error {
   constructor() {
@@ -53,6 +54,12 @@ export interface ScrapeContext {
   page: Page
   params: SearchParams
   token: CancellationToken
+  /**
+   * True for a scheduled run, where nobody is watching. An adapter must not
+   * surface a window or wait for a person — it fails with a ScrapeError that
+   * says what needs doing instead.
+   */
+  unattended: boolean
   /** Persist a job. Returns true when it was new. */
   saveJob: (job: Job) => boolean
   /** True when the job is already stored, so it can be skipped without opening it. */
@@ -66,6 +73,28 @@ export interface JobBoardAdapter {
   /** One URL per location — most boards only accept a single location per search. */
   buildSearchUrls(params: SearchParams): string[]
   run(ctx: ScrapeContext): Promise<void>
+}
+
+/**
+ * A board read over plain HTTP. It has no page and does not touch the browser
+ * profile, so it neither waits for the sign-in window nor can it collide with
+ * one — the context is a scrape context minus everything a browser brings.
+ */
+export type FeedContext = Omit<ScrapeContext, 'page' | 'unattended'>
+
+export interface FeedBoardAdapter {
+  readonly name: BoardSource
+  run(ctx: FeedContext): Promise<void>
+}
+
+/**
+ * The `tally.inserted` value at which one search stops. The tally runs across
+ * every location a board visits, so a limit compared against it directly would
+ * let the first location use up the whole allowance. Each search gets `perSearch`
+ * more jobs instead, and the board as a whole never goes past its ceiling.
+ */
+export function searchStopAt(tally: ScrapeTally, perSearch: number): number {
+  return Math.min(tally.inserted + perSearch, MAX_JOBS_PER_BOARD)
 }
 
 export function sleep(ms: number) {
