@@ -73,9 +73,10 @@ export function ProfileScreen() {
         <section className="card">
           <h2 className="t-body scan__title">About you</h2>
           <p className="t-caption t-muted profile__copy">
-            Anything left empty is skipped. Open a job from the Inbox, press Autofill, get to its
-            application form, then press Autofill again — it fills what it recognises and never
-            submits.
+            Anything left empty is skipped. Open a job from the Inbox and press Autofill: it opens
+            the job, presses Apply (LinkedIn Easy Apply or the company's own site), and fills what
+            it recognises. If it stops on a question it cannot answer, answer it and press Autofill
+            again. It never presses Submit.
           </p>
 
           <div className="profile__grid">

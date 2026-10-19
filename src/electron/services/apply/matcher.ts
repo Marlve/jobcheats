@@ -10,7 +10,8 @@
 export interface FormField {
   /** Stable handle for this read of the page, tagged onto the element as data-jc-field. */
   id: string
-  tag: 'input' | 'textarea' | 'select'
+  /** A 'radio' is a whole group of radio buttons, its `options` the buttons' labels. */
+  tag: 'input' | 'textarea' | 'select' | 'radio'
   type: string
   label: string
   autocomplete: string
@@ -99,7 +100,7 @@ export function decide(field: FormField, profile: Profile): FillAction | null {
 
   const label = normalise(field.label)
 
-  if (field.tag === 'select') {
+  if (field.tag === 'select' || field.tag === 'radio') {
     if (field.value) return null
 
     const rule = YES_NO_RULES.find(candidate => candidate.label.test(label))

@@ -50,8 +50,10 @@ interface Window {
     saveProfile: (profile: Profile) => Promise<Profile>;
 
     /**
-     * First call opens the job in a visible browser; later calls fill whatever
-     * form is in its front tab. Never submits.
+     * First call opens the job in a visible browser, presses Apply and fills what
+     * that leads to (a LinkedIn Easy Apply popup, stepped through, or the
+     * company's own form). Later calls carry on with an open popup, else fill
+     * whatever form is in its front tab. Never presses Submit.
      */
     autofill: (url: string) => Promise<AutofillResult>;
 
@@ -184,6 +186,8 @@ type AutofillResult =
       needsYou: string[];
       /** Other fields that were left alone. */
       skipped: number;
+      /** Easy Apply only: on its last page (Submit is yours), or stuck on a step that needs you. */
+      stoppedAt?: 'review' | 'questions';
     }
   | { ok: false; error: string }
 
