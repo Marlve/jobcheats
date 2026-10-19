@@ -48,7 +48,7 @@ function describeUpdate(update: UpdateStatus): string {
 /** What turning each board on actually gets you, and what it costs. */
 const BOARD_NOTE: Record<BoardSource, string> = {
   linkedin: 'Signs in as you, in a browser window this app drives. The session stays on this device.',
-  seek: 'No sign-in needed. Newly added and not yet run against the live site, so expect rough edges.',
+  seek: 'Scans work without an account; sign in so Autofill can apply as you. Sign-in opens a normal browser window, Google sign-in included. Newly added, so expect rough edges.',
   japandev: 'English-speaking tech jobs in Japan, and each one says whether it sponsors a visa from overseas. Reads its 60 newest postings, about three weeks. No sign-in, no browser window.',
 };
 
@@ -58,7 +58,7 @@ const BOARD_NOTE: Record<BoardSource, string> = {
  */
 const HAS_SIGN_IN: Record<BoardSource, boolean> = {
   linkedin: true,
-  seek: false,
+  seek: true,
   japandev: false,
 };
 

@@ -44,11 +44,13 @@ export const BOARD_ENABLED_BY_DEFAULT: Record<BoardSource, boolean> = {
 /**
  * Where to send someone to sign in to a board, for the boards that need it.
  *
- * Partial rather than a Record because most boards need nothing: Seek reads
- * without an account, and a board with no entry simply has no Sign in button.
+ * Partial rather than a Record because some boards need nothing: Japan Dev
+ * reads without an account, and a board with no entry simply has no Sign in
+ * button. Seek reads without one too, but applying through it needs a session.
  */
 export const SIGN_IN_URL: Partial<Record<BoardSource, string>> = {
   linkedin: 'https://www.linkedin.com/login',
+  seek: 'https://www.seek.com.au/oauth/login/',
 }
 
 /** The configured boards, in the order they are declared above. */
