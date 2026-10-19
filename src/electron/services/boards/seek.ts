@@ -4,6 +4,7 @@ import {
   JobBoardAdapter,
   ScrapeContext,
   ScrapeError,
+  searchStopAt,
   sleep,
 } from "./adapter.js"
 import { extractMetadata } from "./metadata.js"
@@ -397,7 +398,9 @@ async function scrapeResultPage(
 async function scrapeSearchUrl(ctx: ScrapeContext, searchUrl: string): Promise<void> {
   const { report, token, params, tally } = ctx
   const maxPages = Math.max(params.maxPages ?? DEFAULT_MAX_PAGES, 1)
-  const maxJobs = Math.max(params.maxJobs ?? DEFAULT_MAX_JOBS, 1)
+  const perSearch = Math.max(params.maxJobs ?? DEFAULT_MAX_JOBS, 1)
+  const maxJobs = searchStopAt(tally, perSearch)
+  if (maxJobs <= tally.inserted) return
 
   report({ phase: 'searching', message: 'Searching Seek' })
   console.log(`[seek] requesting ${searchUrl}`)
@@ -410,7 +413,7 @@ async function scrapeSearchUrl(ctx: ScrapeContext, searchUrl: string): Promise<v
     if (!hadResults) return
 
     if (tally.inserted >= maxJobs) {
-      report({ message: `Reached the ${maxJobs} job limit` })
+      report({ message: `Reached the ${perSearch} job limit` })
       return
     }
   }

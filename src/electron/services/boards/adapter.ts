@@ -1,4 +1,5 @@
 import { Page } from "playwright"
+import { MAX_JOBS_PER_BOARD } from "../../config.js"
 
 export class ScrapeCancelledError extends Error {
   constructor() {
@@ -84,6 +85,16 @@ export type FeedContext = Omit<ScrapeContext, 'page' | 'unattended'>
 export interface FeedBoardAdapter {
   readonly name: BoardSource
   run(ctx: FeedContext): Promise<void>
+}
+
+/**
+ * The `tally.inserted` value at which one search stops. The tally runs across
+ * every location a board visits, so a limit compared against it directly would
+ * let the first location use up the whole allowance. Each search gets `perSearch`
+ * more jobs instead, and the board as a whole never goes past its ceiling.
+ */
+export function searchStopAt(tally: ScrapeTally, perSearch: number): number {
+  return Math.min(tally.inserted + perSearch, MAX_JOBS_PER_BOARD)
 }
 
 export function sleep(ms: number) {

@@ -6,6 +6,7 @@ import {
   JobBoardAdapter,
   ScrapeContext,
   ScrapeError,
+  searchStopAt,
   sleep,
 } from "./adapter.js"
 import { extractMetadata, JobMetadata } from "./metadata.js"
@@ -698,7 +699,9 @@ async function scrapeSimilarJobs(ctx: ScrapeContext, maxJobs: number): Promise<n
 async function scrapeSearchUrl(ctx: ScrapeContext, searchUrl: string): Promise<void> {
   const { page, token, report, params, tally } = ctx
   const maxPages = Math.max(params.maxPages ?? DEFAULT_MAX_PAGES, 1)
-  const maxJobs = Math.max(params.maxJobs ?? DEFAULT_MAX_JOBS, 1)
+  const perSearch = Math.max(params.maxJobs ?? DEFAULT_MAX_JOBS, 1)
+  const maxJobs = searchStopAt(tally, perSearch)
+  if (maxJobs <= tally.inserted) return
 
   // The URL goes to the terminal, not the screen. The query is the readable
   // half of it, and now that it is a sentence it says what is being looked for
@@ -748,7 +751,7 @@ async function scrapeSearchUrl(ctx: ScrapeContext, searchUrl: string): Promise<v
     await scrapeResultPage(ctx, layout, maxJobs)
 
     if (tally.inserted >= maxJobs) {
-      report({ message: `Reached the ${maxJobs} job limit` })
+      report({ message: `Reached the ${perSearch} job limit` })
       return
     }
     if (!await goToNextPage(page, layout, token)) return
