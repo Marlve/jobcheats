@@ -23,14 +23,14 @@ export interface SankeyLayout {
   height: number
 }
 
-const NODE_WIDTH = 16
-const NODE_GAP = 14
+const NODE_WIDTH = 10
+const NODE_GAP = 10
 /** Room beside the columns for the labels, which sit outside the boxes. */
-const PADDING = { top: 16, right: 210, bottom: 16, left: 120 }
+const PADDING = { top: 8, right: 112, bottom: 8, left: 128 }
 /** A box thinner than this would be invisible, so it is drawn at least this tall. */
 const MIN_HEIGHT = 4
 
-export function layoutSankey(graph: PipelineGraph, width = 920, height = 420): SankeyLayout {
+export function layoutSankey(graph: PipelineGraph, width = 700, height = 280): SankeyLayout {
   const nodes = graph.nodes.filter(node => node.value > 0)
   if (!nodes.length) return { nodes: [], links: [], width, height }
 

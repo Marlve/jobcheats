@@ -52,18 +52,18 @@ export function leafOf(row: PipelineRow): Leaf | null {
 
 const NODES: Omit<PipelineNode, 'value'>[] = [
   { id: 'tracked', label: 'Saved or applied', rank: 0, tone: 'neutral' },
-  { id: 'savedOnly', label: 'Saved, not applied', rank: 1, tone: 'muted' },
-  { id: 'droppedEarly', label: 'Dropped before applying', rank: 1, tone: 'muted' },
+  { id: 'savedOnly', label: 'Saved only', rank: 1, tone: 'muted' },
+  { id: 'droppedEarly', label: 'Dropped', rank: 1, tone: 'muted' },
   { id: 'applied', label: 'Applied', rank: 1, tone: 'info' },
-  { id: 'waiting', label: 'Waiting to hear back', rank: 2, tone: 'warn' },
-  { id: 'turnedDownApply', label: 'Turned down, no interview', rank: 2, tone: 'danger' },
+  { id: 'waiting', label: 'Waiting', rank: 2, tone: 'warn' },
+  { id: 'turnedDownApply', label: 'Turned down', rank: 2, tone: 'danger' },
   { id: 'withdrewApply', label: 'Withdrew', rank: 2, tone: 'muted' },
-  { id: 'interviewed', label: 'Reached interviews', rank: 2, tone: 'info' },
+  { id: 'interviewed', label: 'Interviewed', rank: 2, tone: 'info' },
   { id: 'interviewing', label: 'Interviewing', rank: 3, tone: 'info' },
   { id: 'offer', label: 'Offer', rank: 3, tone: 'success' },
   { id: 'hired', label: 'Hired', rank: 3, tone: 'success' },
-  { id: 'turnedDownInterview', label: 'Turned down after interviewing', rank: 3, tone: 'danger' },
-  { id: 'withdrewInterview', label: 'Withdrew after interviewing', rank: 3, tone: 'muted' },
+  { id: 'turnedDownInterview', label: 'Turned down', rank: 3, tone: 'danger' },
+  { id: 'withdrewInterview', label: 'Withdrew', rank: 3, tone: 'muted' },
 ]
 
 export function buildPipeline(rows: PipelineRow[]): PipelineGraph {
