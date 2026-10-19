@@ -280,8 +280,9 @@ interface UpdateStatus {
 }
 
 /**
- * 'rejected' is you passing on a job ("Not for me"). The employer saying no is
- * 'turned_down', a separate thing that belongs to the pipeline, not the inbox.
+ * 'rejected' is you removing a job ("Not for me", or Remove in the archive). It
+ * is hidden from every list and kept, so a later scan does not add it back. The
+ * employer saying no is 'turned_down', a separate thing that belongs to the pipeline.
  */
 type JobStatus =
   | 'new'
@@ -352,7 +353,7 @@ interface ListJobsOptions {
   offset?: number;
   source?: JobSource;
   status?: JobStatus;
-  /** inbox = new/rejected, archive = saved/applied. Defaults to 'all'. */
+  /** inbox = new, archive = saved/applied and later stages. Defaults to 'all' (removed jobs never show). */
   view?: JobView;
   minScore?: number;
   /** not-restricted hides jobs that say you need existing work rights. */

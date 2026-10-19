@@ -20,8 +20,8 @@ import './inbox.css';
 
 /**
  * Inbox and Archive are the same list over a different slice of the database:
- * inbox holds new/rejected and expires after 7 days, archive holds saved/applied
- * and is kept forever. Splitting them into two components would duplicate every
+ * inbox holds new jobs and expires after 7 days, archive holds saved/applied
+ * and is kept forever. A removed job (Not for me) is in neither. Splitting them into two components would duplicate every
  * filter and row action, so the view is a prop.
  */
 export type JobListView = Extract<JobView, 'inbox' | 'archive'>;
@@ -129,9 +129,11 @@ export function InboxScreen({ view }: { view: JobListView }) {
     await window.electron.updateJobStatus(job.id, next);
 
     // Acting on a job can move it out of the current view (saving promotes it to
-    // the archive), so drop it from the list rather than showing a stale row.
-    const inInbox = next === 'new' || next === 'rejected';
-    const stillHere = (view === 'inbox' ? inInbox : !inInbox)
+    // the archive, "Not for me" hides it everywhere), so drop it from the list
+    // rather than showing a stale row.
+    const inInbox = next === 'new';
+    const stillHere = next !== 'rejected'
+      && (view === 'inbox' ? inInbox : !inInbox)
       && (view !== 'archive' || stage === 'all' || stage === next);
 
     setJobs((current) => stillHere
@@ -282,6 +284,7 @@ function JobCard({
   const saveTimer = useRef<number | null>(null);
   const [filling, setFilling] = useState(false);
   const [autofill, setAutofill] = useState<AutofillResult | null>(null);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
 
   async function runAutofill() {
     if (!job.url) return;
@@ -405,6 +408,19 @@ function JobCard({
             <IconExternal size={14} />
             Open
           </a>
+        )}
+
+        {/* An archived job is a record of something you did, so removing it takes a second press. */}
+        {job.status !== 'new' && (
+          <Button
+            size="sm"
+            variant={confirmingRemove ? 'danger-solid' : 'ghost'}
+            onClick={() => (confirmingRemove ? onStatus(job, 'rejected') : setConfirmingRemove(true))}
+            onBlur={() => setConfirmingRemove(false)}
+          >
+            <IconCross size={14} />
+            {confirmingRemove ? 'Remove for good?' : 'Remove'}
+          </Button>
         )}
       </div>
 

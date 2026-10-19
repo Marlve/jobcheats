@@ -1,6 +1,6 @@
 import fs from 'fs'
 import { db, dbPath, withTransaction } from "./schema.js"
-import { ARCHIVED_STATUSES, INBOX_STATUSES, RETENTION_DAYS } from "../config.js"
+import { ARCHIVED_STATUSES, HIDDEN_STATUS, INBOX_STATUSES, RETENTION_DAYS } from "../config.js"
 import { classifyVisa } from "../services/visa.js"
 
 // ---------- statements ----------
@@ -124,6 +124,9 @@ function buildFilter(options: ListJobsOptions) {
     const statuses = options.view === 'inbox' ? INBOX_STATUSES : ARCHIVED_STATUSES
     clauses.push(`status IN (${placeholders(statuses.length)})`)
     values.push(...statuses)
+  } else {
+    clauses.push('status != ?')
+    values.push(HIDDEN_STATUS)
   }
   if (options.minScore !== undefined) {
     clauses.push('match_score >= ?')
@@ -199,8 +202,8 @@ export function getScorableJobs(runId?: number): ScorableJob[] {
 /** Non-null match scores, for the insights distribution. */
 export function getMatchScores(): number[] {
   const rows = db
-    .prepare('SELECT match_score FROM jobs WHERE match_score IS NOT NULL')
-    .all() as { match_score: number }[]
+    .prepare('SELECT match_score FROM jobs WHERE match_score IS NOT NULL AND status != ?')
+    .all(HIDDEN_STATUS) as { match_score: number }[]
   return rows.map(row => row.match_score)
 }
 
@@ -210,8 +213,8 @@ export function getMatchScores(): number[] {
  */
 export function getMatchedKeywordSets(): string[][] {
   const rows = db
-    .prepare('SELECT matched_keywords FROM jobs WHERE matched_keywords IS NOT NULL')
-    .all() as { matched_keywords: string }[]
+    .prepare('SELECT matched_keywords FROM jobs WHERE matched_keywords IS NOT NULL AND status != ?')
+    .all(HIDDEN_STATUS) as { matched_keywords: string }[]
   return rows.map(row => parseKeywords(row.matched_keywords))
 }
 

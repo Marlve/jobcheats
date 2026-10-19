@@ -16,7 +16,14 @@ export const ARCHIVED_STATUSES: JobStatus[] = [
   'turned_down',
   'withdrawn',
 ]
-export const INBOX_STATUSES: JobStatus[] = ['new', 'rejected']
+/**
+ * Only untouched jobs sit in the inbox and expire. 'rejected' (Not for me, or a
+ * job removed from the archive) is in neither list: it is a hidden record that
+ * stays so a later scan does not add the same job back.
+ */
+export const INBOX_STATUSES: JobStatus[] = ['new']
+/** Hidden everywhere, never expires. */
+export const HIDDEN_STATUS: JobStatus = 'rejected'
 
 /** A job at or above this score counts as a strong match. */
 export const MATCH_THRESHOLD = 60
