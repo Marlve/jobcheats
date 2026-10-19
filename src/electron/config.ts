@@ -80,9 +80,6 @@ export function isLastEnabledBoard(source: BoardSource, enabled: BoardSource[]):
   return enabled.length === 1 && enabled[0] === source
 }
 
-/** How many companies can be watched. Each is one request per scan. */
-export const MAX_WATCHED_COMPANIES = 50
-
 /** A feed or page read over plain HTTP that has not answered by now is not going to. */
 export const FEED_REQUEST_TIMEOUT_MS = 30_000
 

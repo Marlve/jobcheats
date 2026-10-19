@@ -1,6 +1,6 @@
 import { FeedBoardAdapter, FeedContext, humanDelay, ScrapeError } from "./adapter.js"
 import { FeedError, fetchText } from "../http.js"
-import { inWindow, matchesSearch } from "../watchlist/filter.js"
+import { inWindow, matchesSearch } from "./filter.js"
 import { MAX_JOBS_PER_BOARD } from "../../config.js"
 import { JAPAN_DEV_BASE, jobUrlFromId, listingFromHtml, ListingPage, parseJobPage } from "./japandevParse.js"
 

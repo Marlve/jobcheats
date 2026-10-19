@@ -12,7 +12,7 @@
  *     visible markup is a client-rendered app whose class names are not.
  */
 
-import { htmlToText } from "../watchlist/text.js"
+import { htmlToText } from "./text.js"
 import { parseSalary, parseWorkType } from "./metadata.js"
 
 export const JAPAN_DEV_BASE = 'https://japan-dev.com'

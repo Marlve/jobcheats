@@ -11,7 +11,6 @@ import {
 } from '../components/Icons';
 import { ScheduleCard } from '../components/ScheduleCard';
 import { Select } from '../components/Select';
-import { WatchlistCard } from '../components/WatchlistCard';
 import { SearchHistory } from '../components/SearchHistory';
 import { SOURCE_LABEL } from '../components/StatusPill';
 import { formatDateTime } from '../format';
@@ -19,9 +18,9 @@ import './scan.css';
 
 /**
  * The app is a daily tool and the inbox only keeps jobs for 7 days, so 24h stays
- * the default. 'month' is for a first scan or a watched company: the retention
- * clock starts when a job is first seen, not when it was posted, so a month-old
- * posting still gets its full week to be acted on.
+ * the default. 'month' is for a first scan: the retention clock starts when a
+ * job is first seen, not when it was posted, so a month-old posting still gets
+ * its full week to be acted on.
  */
 const DATE_POSTED: { value: DatePosted; label: string }[] = [
   { value: '24h', label: 'Last 24h' },
@@ -39,11 +38,9 @@ const MAX_JOBS = [10, 25, 50].map((n) => ({ value: n, label: `Up to ${n} jobs` }
 
 /** "LinkedIn and Seek" — read as a sentence rather than comma-spliced. */
 function joinNames(names: string[]): string {
-  const joined = names.length < 2
+  return names.length < 2
     ? names[0] ?? ''
     : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-  // It opens the sentence, and "your watchlist" is lower-case when it is alone.
-  return joined.charAt(0).toUpperCase() + joined.slice(1);
 }
 
 const PHASE_LABEL: Record<ScrapePhase, string> = {
@@ -89,19 +86,17 @@ export function ScanScreen() {
   const [keywordCount, setKeywordCount] = useState(0);
   // null until read, so the header does not flash "no boards" on the way in.
   const [boards, setBoards] = useState<BoardPreference[] | null>(null);
-  const [watched, setWatched] = useState<WatchedCompany[]>([]);
   const [history, setHistory] = useState<SearchHistoryEntry[]>([]);
 
   // Boards are read on mount rather than held anywhere shared: this screen is
   // unmounted while you are in Settings, so coming back re-reads them.
   useEffect(() => {
     void (async () => {
-      const [words, resume, recent, boardList, watchlist, past] = await Promise.all([
+      const [words, resume, recent, boardList, past] = await Promise.all([
         window.electron.listKeywords(),
         window.electron.getResume(),
         window.electron.listRuns(8),
         window.electron.listBoards(),
-        window.electron.listWatchlist(),
         window.electron.listSearchHistory(),
       ]);
       setKeywordCount(words.filter((word) => word.enabled).length);
@@ -109,7 +104,6 @@ export function ScanScreen() {
       setRuns(recent);
       setHistory(past);
       setBoards(boardList);
-      setWatched(watchlist);
     })();
   }, []);
 
@@ -188,14 +182,10 @@ export function ScanScreen() {
     || jobType !== 'full-time' || maxJobs !== 50;
 
   const enabledBoards = (boards ?? []).filter((board) => board.enabled);
-  const sourceNames = [
-    ...enabledBoards.map((board) => SOURCE_LABEL[board.source]),
-    ...(watched.length ? ['your watchlist'] : []),
-  ];
-  // A watched company is something for a scan to read even with every board off.
-  const noBoards = boards !== null && enabledBoards.length === 0 && watched.length === 0;
+  const sourceNames = enabledBoards.map((board) => SOURCE_LABEL[board.source]);
+  const noBoards = boards !== null && enabledBoards.length === 0;
 
-  const canRun = Boolean(term) && (enabledBoards.length > 0 || watched.length > 0) && !running;
+  const canRun = Boolean(term) && enabledBoards.length > 0 && !running;
   const inserted = results?.reduce((sum, r) => sum + (r.ok ? r.inserted : 0), 0) ?? 0;
 
   // Locations are the one input that does fan out — buildSearchUrls emits a
@@ -424,8 +414,6 @@ export function ScanScreen() {
 
         <SearchHistory entries={history} onUse={reuse} onChange={setHistory} />
 
-        <WatchlistCard companies={watched} onChange={setWatched} />
-
         <ScheduleCard search={search} />
 
         {/* ---------- history ---------- */}
@@ -435,7 +423,7 @@ export function ScanScreen() {
             <ul className="run-history">
               {runs.map((entry) => (
                 <li key={entry.id} className="run-row">
-                  <span className="run-row__board t-label">{SOURCE_LABEL[entry.source]}</span>
+                  <span className="run-row__board t-label">{SOURCE_LABEL[entry.source] ?? entry.source}</span>
                   <span className="run-row__when t-caption t-muted">
                     {formatDateTime(entry.startedAt)}
                   </span>

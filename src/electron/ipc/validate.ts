@@ -9,7 +9,7 @@ import { isVersion } from "../services/version.js"
 const JOB_TYPES: JobType[] = ['internship', 'full-time', 'part-time']
 const DATES_POSTED: DatePosted[] = ['24h', 'week', 'month']
 const BOARD_SOURCES: BoardSource[] = ['linkedin', 'seek', 'japandev']
-const JOB_SOURCES: JobSource[] = [...BOARD_SOURCES, 'watchlist']
+const JOB_SOURCES: JobSource[] = [...BOARD_SOURCES]
 const JOB_STATUSES: JobStatus[] = [
   'new',
   'saved',
@@ -199,12 +199,6 @@ export function validateJobStatus(raw: unknown): JobStatus {
 
 export function validateBoardSource(raw: unknown): BoardSource {
   return asOneOf(raw, BOARD_SOURCES, 'source')
-}
-
-export function validateCareersLink(raw: unknown): string {
-  if (typeof raw !== 'string' || !raw.trim()) throw new ValidationError('Paste a link to a careers page')
-  if (raw.length > 500) throw new ValidationError('That link is too long')
-  return raw.trim()
 }
 
 export function validateTextId(raw: unknown): string {

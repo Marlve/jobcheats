@@ -44,14 +44,6 @@ interface Window {
      */
     signIn: (source: BoardSource) => Promise<SignInResult>;
 
-    // ---- company watchlist ----
-    listWatchlist: () => Promise<WatchedCompany[]>;
-
-    /** Takes a pasted careers link. Resolves to the new list, or why it was refused. */
-    addToWatchlist: (link: string) => Promise<AddWatchResult>;
-
-    removeFromWatchlist: (id: string) => Promise<WatchedCompany[]>;
-
     // ---- autofill ----
     getProfile: () => Promise<Profile>;
 
@@ -149,8 +141,8 @@ interface Window {
 /** A job board a scan can read. These are the ones with a Settings toggle. */
 type BoardSource = 'linkedin' | 'seek' | 'japandev'
 
-/** Where a job came from. The watchlist is companies' own job feeds, not a board. */
-type JobSource = BoardSource | 'watchlist'
+/** Where a job came from. */
+type JobSource = BoardSource
 
 /** A board and whether a scan will run it. */
 interface BoardPreference {
@@ -160,24 +152,6 @@ interface BoardPreference {
 
 /** `ok` means the window was opened and has since been closed, not that anyone signed in. */
 type SignInResult = { ok: true } | { ok: false; error: string }
-
-// ---------- company watchlist ----------
-
-/** The applicant-tracking systems that publish a public job feed. */
-type WatchAts = 'greenhouse' | 'lever' | 'ashby'
-
-interface WatchedCompany {
-  /** "ats:slug", lower-case. Stable, and the prefix of every job id the company yields. */
-  id: string;
-  ats: WatchAts;
-  /** The board's name on that system, e.g. "airbnb". */
-  slug: string;
-  name: string;
-}
-
-type AddWatchResult =
-  | { ok: true; companies: WatchedCompany[] }
-  | { ok: false; error: string }
 
 // ---------- autofill ----------
 

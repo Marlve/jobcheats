@@ -34,7 +34,6 @@ export const SOURCE_LABEL: Record<JobSource, string> = {
   linkedin: 'LinkedIn',
   seek: 'Seek',
   japandev: 'Japan Dev',
-  watchlist: 'Watchlist',
 };
 
 export function StatusPill({ status }: { status: JobStatus }) {

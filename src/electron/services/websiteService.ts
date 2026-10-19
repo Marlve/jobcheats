@@ -11,7 +11,6 @@ import {
   startRun,
 } from "../db/db.js"
 import { scoreNewJobs } from "./matchService.js"
-import { listWatchlist, runWatchlist } from "./watchlistService.js"
 import { linkedinAdapter } from "./boards/linkedin.js"
 import { seekAdapter } from "./boards/seek.js"
 import { japanDevAdapter } from "./boards/japandev.js"
@@ -214,20 +213,14 @@ async function runScrapeAll(
   onProgress: ProgressReporter,
   unattended: boolean
 ): Promise<ScrapeResult[]> {
-  // Company feeds are read after the boards, and need no browser of their own.
-  const watched = listWatchlist()
-  const stepCount = sources.length + (watched.length ? 1 : 0)
-
-  // Every board turned off and nobody watched. The scan screen will not offer
-  // the button in that state, so this is only reachable out of order — return
-  // nothing rather than taking the run lock to visit no sites.
-  if (!stepCount) return []
-
-  const stepSources: JobSource[] = watched.length ? [...sources, 'watchlist'] : sources
+  // Every board turned off. The scan screen will not offer the button in that
+  // state, so this is only reachable out of order — return nothing rather than
+  // taking the run lock to visit no sites.
+  if (!sources.length) return []
 
   // The sign-in window holds the same browser profile a scan needs.
   if (signInService.isOpen) {
-    return stepSources.map(source => ({
+    return sources.map(source => ({
       ok: false as const,
       source,
       runId: null,
@@ -236,7 +229,7 @@ async function runScrapeAll(
   }
 
   if (activeToken || playwrightService.isBusy) {
-    return stepSources.map(source => ({
+    return sources.map(source => ({
       ok: false as const,
       source,
       runId: null,
@@ -259,15 +252,8 @@ async function runScrapeAll(
       results.push(
         await runBoard(source, daily, onProgress, token, {
           index: index + 1,
-          count: stepCount,
+          count: sources.length,
         }, unattended)
-      )
-    }
-
-    if (watched.length && !token.isCancelled) {
-      results.push(
-        await trackRun('watchlist', onProgress, token, { index: stepCount, count: stepCount }, run =>
-          runWatchlist(watched, { ...run, params: daily, token }))
       )
     }
   } finally {

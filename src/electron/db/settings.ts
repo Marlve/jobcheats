@@ -106,19 +106,6 @@ export function writeStoredProfile(profile: Profile): void {
   writeSetting(PROFILE_KEY, JSON.stringify(profile))
 }
 
-// ---------- company watchlist ----------
-
-const WATCHLIST_KEY = 'watchlist.companies'
-
-/** Unvalidated, for the same reason as the schedule above. */
-export function readStoredWatchlist(): unknown {
-  return readJson(WATCHLIST_KEY)
-}
-
-export function writeStoredWatchlist(companies: WatchedCompany[]): void {
-  writeSetting(WATCHLIST_KEY, JSON.stringify(companies))
-}
-
 // ---------- search history ----------
 
 const SEARCH_HISTORY_KEY = 'search.history'

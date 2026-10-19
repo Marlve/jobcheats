@@ -37,7 +37,6 @@ const SOURCES: { value: JobSource | 'all'; label: string }[] = [
   { value: 'linkedin', label: 'LinkedIn' },
   { value: 'seek', label: 'Seek' },
   { value: 'japandev', label: 'Japan Dev' },
-  { value: 'watchlist', label: 'Watchlist' },
 ];
 
 /**
@@ -325,7 +324,7 @@ function JobCard({
       </div>
 
       <div className="job__facts t-caption t-muted">
-        <span className="job__source">{SOURCE_LABEL[job.source]}</span>
+        <span className="job__source">{SOURCE_LABEL[job.source] ?? job.source}</span>
         <VisaChip kind={job.visa} evidence={job.visaEvidence} />
         {job.salary && <span>{job.salary}</span>}
         {job.postedAt && <span>Posted {formatDate(job.postedAt)}</span>}

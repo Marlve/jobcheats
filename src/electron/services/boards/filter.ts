@@ -2,9 +2,9 @@
  * Which of a company's open jobs belong in the inbox. Pure, so it can be unit
  * tested without a network.
  *
- * A job board answers a search; a company feed answers nothing, it just lists
- * everything open. Without this a watched company would put every role it has —
- * from sales to legal — into the inbox on the first poll.
+ * A job board answers a search; a feed like Japan Dev's answers nothing, it just
+ * lists everything open. Without this it would put every role it has — from
+ * sales to legal — into the inbox on the first poll.
  */
 
 const WINDOW_MS: Record<DatePosted, number> = {
