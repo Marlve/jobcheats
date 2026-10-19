@@ -31,7 +31,16 @@ export function Sidebar({
   return (
     <nav className="sidebar">
       <div className="sidebar__brand">
-        <span className="sidebar__mark" aria-hidden="true" />
+        <svg className="sidebar__mark" viewBox="0 0 1024 1024" aria-hidden="true">
+          <rect width="1024" height="1024" rx="232" />
+          <path
+            d="M676 258 L548 640 Q520 712 450 712 Q372 712 336 630"
+            fill="none"
+            strokeWidth="104"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
         <span className="t-title sidebar__label">JobCheats</span>
       </div>
 
