@@ -14,6 +14,7 @@ import {
 } from '../components/Icons';
 import { Select } from '../components/Select';
 import { Tooltip } from '../components/Tooltip';
+import { ExperienceChip } from '../components/ExperienceChip';
 import { VisaChip } from '../components/VisaChip';
 import { daysUntil, formatDate } from '../format';
 import './inbox.css';
@@ -68,6 +69,28 @@ const VISA_FILTERS: { value: NonNullable<ListJobsOptions['visa']> | 'all'; label
   { value: 'sponsors', label: 'Sponsors visas only' },
 ];
 
+type ExperienceFilter = NonNullable<ListJobsOptions['experience']> | 'all';
+
+/** Filters on how senior a posting is. Postings that state no years pass all of them. */
+const EXPERIENCE_FILTERS: { value: ExperienceFilter; label: string }[] = [
+  { value: 'all', label: 'Any experience' },
+  { value: 'not-senior', label: 'Hide senior titles' },
+  { value: 'junior', label: 'Hide senior and 3+ years' },
+  { value: 'entry', label: 'Entry level (hide 2+ years)' },
+];
+
+const EXPERIENCE_KEY = 'inbox.experience';
+
+/** The last choice, so the filter does not have to be set again each time the inbox opens. */
+function loadExperience(): ExperienceFilter {
+  try {
+    const saved = window.localStorage.getItem(EXPERIENCE_KEY);
+    return EXPERIENCE_FILTERS.find((item) => item.value === saved)?.value ?? 'all';
+  } catch {
+    return 'all';
+  }
+}
+
 const MIN_SCORES = [
   { value: 0, label: 'Any score' },
   { value: 40, label: '40+' },
@@ -84,6 +107,7 @@ export function InboxScreen({ view }: { view: JobListView }) {
   const [source, setSource] = useState<JobSource | 'all'>('all');
   const [minScore, setMinScore] = useState(0);
   const [visa, setVisa] = useState<NonNullable<ListJobsOptions['visa']> | 'all'>('all');
+  const [experience, setExperience] = useState<ExperienceFilter>(loadExperience);
   const [stage, setStage] = useState<JobStatus | 'all'>('all');
   const [sortBy, setSortBy] = useState<NonNullable<ListJobsOptions['sortBy']>>('score');
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -100,11 +124,13 @@ export function InboxScreen({ view }: { view: JobListView }) {
     sortBy,
     minScore: minScore || undefined,
     visa: visa === 'all' ? undefined : visa,
+    // Saved and applied jobs were picked by hand, so the archive is never trimmed.
+    experience: view === 'inbox' && experience !== 'all' ? experience : undefined,
     source: source === 'all' ? undefined : source,
     status: view === 'archive' && stage !== 'all' ? stage : undefined,
     search: debouncedSearch.trim() || undefined,
     limit: 200,
-  }), [view, sortBy, minScore, visa, source, stage, debouncedSearch]);
+  }), [view, sortBy, minScore, visa, experience, source, stage, debouncedSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,8 +169,17 @@ export function InboxScreen({ view }: { view: JobListView }) {
     setStats(await window.electron.getDbStats());
   }
 
+  function changeExperience(next: ExperienceFilter) {
+    setExperience(next);
+    try {
+      window.localStorage.setItem(EXPERIENCE_KEY, next);
+    } catch {
+      // Not remembered, but the filter still applies for this session.
+    }
+  }
+
   const expiresIn = daysUntil(stats?.nextExpiryAt ?? null);
-  const filtered = Boolean(debouncedSearch.trim()) || minScore > 0 || source !== 'all' || visa !== 'all' || stage !== 'all';
+  const filtered = Boolean(debouncedSearch.trim()) || minScore > 0 || source !== 'all' || visa !== 'all' || (view === 'inbox' && experience !== 'all') || stage !== 'all';
 
   const copy = view === 'inbox'
     ? { title: 'Inbox', subtitle: `Jobs from the last ${stats?.retentionDays ?? 7} days, sorted by match score` }
@@ -204,6 +239,15 @@ export function InboxScreen({ view }: { view: JobListView }) {
             label="Visa wording"
           />
 
+          {view === 'inbox' && (
+            <Select
+              value={experience}
+              options={EXPERIENCE_FILTERS}
+              onChange={changeExperience}
+              label="Experience wanted"
+            />
+          )}
+
           {view === 'archive' && (
             <Select
               value={stage}
@@ -243,7 +287,7 @@ export function InboxScreen({ view }: { view: JobListView }) {
             <p className="t-title">{filtered ? 'No jobs match those filters' : `Nothing in your ${view}`}</p>
             <p className="t-body t-secondary">
               {filtered
-                ? 'Widen the score range or clear the search to see more.'
+                ? 'Widen the score range, relax a filter or clear the search to see more.'
                 : view === 'inbox'
                   ? 'Run a daily scan to pull jobs from LinkedIn and Seek, scored against your resume.'
                   : 'Jobs you save or mark as applied are kept here permanently.'}
@@ -329,6 +373,7 @@ function JobCard({
       <div className="job__facts t-caption t-muted">
         <span className="job__source">{SOURCE_LABEL[job.source] ?? job.source}</span>
         <VisaChip kind={job.visa} evidence={job.visaEvidence} />
+        <ExperienceChip senior={job.senior} minYears={job.minYears} evidence={job.experienceEvidence} />
         {job.salary && <span>{job.salary}</span>}
         {job.postedAt && <span>Posted {formatDate(job.postedAt)}</span>}
         <span>Seen {formatDate(job.firstSeenAt)}</span>

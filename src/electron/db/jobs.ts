@@ -2,17 +2,22 @@ import fs from 'fs'
 import { db, dbPath, withTransaction } from "./schema.js"
 import { ARCHIVED_STATUSES, HIDDEN_STATUS, INBOX_STATUSES, RETENTION_DAYS } from "../config.js"
 import { classifyVisa } from "../services/visa.js"
+import { classifyExperience } from "../services/experience.js"
 
 // ---------- statements ----------
 
 const upsertJobStmt = db.prepare(`
   INSERT INTO jobs
-    (source, job_id, url, title, company, location, about_text, posted_at, salary, work_type, run_id, visa, visa_evidence)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (source, job_id, url, title, company, location, about_text, posted_at, salary, work_type, run_id, visa, visa_evidence,
+     senior, min_years, experience_evidence)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT (source, job_id) DO UPDATE SET
     last_seen_at = CURRENT_TIMESTAMP,
     visa         = excluded.visa,
     visa_evidence = excluded.visa_evidence,
+    senior       = excluded.senior,
+    min_years    = excluded.min_years,
+    experience_evidence = excluded.experience_evidence,
     url          = COALESCE(excluded.url, jobs.url),
     posted_at    = COALESCE(excluded.posted_at, jobs.posted_at),
     salary       = COALESCE(excluded.salary, jobs.salary),
@@ -32,6 +37,9 @@ const updateMatchStmt = db.prepare(
   'UPDATE jobs SET match_score = ?, matched_keywords = ? WHERE id = ?'
 )
 const updateVisaStmt = db.prepare('UPDATE jobs SET visa = ?, visa_evidence = ? WHERE id = ?')
+const updateExperienceStmt = db.prepare(
+  'UPDATE jobs SET senior = ?, min_years = ?, experience_evidence = ? WHERE id = ?'
+)
 
 // ---------- row mapping ----------
 
@@ -54,6 +62,9 @@ type JobRecord = {
   notes: string | null
   visa: string | null
   visa_evidence: string | null
+  senior: number | null
+  min_years: number | null
+  experience_evidence: string | null
   first_seen_at: string
   last_seen_at: string
 }
@@ -89,6 +100,9 @@ function toJobRow(record: JobRecord): JobRow {
     // A row not yet classified reads as "no signal" rather than as an error.
     visa: (record.visa ?? 'none') as VisaKind,
     visaEvidence: parseKeywords(record.visa_evidence),
+    senior: record.senior === 1,
+    minYears: record.min_years,
+    experienceEvidence: parseKeywords(record.experience_evidence),
     firstSeenAt: record.first_seen_at,
     lastSeenAt: record.last_seen_at,
   }
@@ -106,6 +120,13 @@ const SORT_COLUMNS: Record<NonNullable<ListJobsOptions['sortBy']>, string> = {
   score: 'match_score IS NULL, match_score DESC, first_seen_at DESC',
   date: 'first_seen_at DESC, id DESC',
   company: 'company COLLATE NOCASE ASC, match_score DESC',
+}
+
+/** Each experience filter hides senior titles; these also hide a stated minimum of this many years or more. */
+const EXPERIENCE_YEARS_CAP: Record<NonNullable<ListJobsOptions['experience']>, number | undefined> = {
+  'not-senior': undefined,
+  junior: 3,
+  entry: 2,
 }
 
 function buildFilter(options: ListJobsOptions) {
@@ -138,6 +159,16 @@ function buildFilter(options: ListJobsOptions) {
   } else if (options.visa === 'sponsors') {
     clauses.push("visa = 'sponsors'")
   }
+  // Unclassified rows (NULL) and postings that state no years pass — silence is
+  // not a requirement.
+  if (options.experience) {
+    clauses.push('(senior IS NULL OR senior = 0)')
+    const yearsCap = EXPERIENCE_YEARS_CAP[options.experience]
+    if (yearsCap !== undefined) {
+      clauses.push('(min_years IS NULL OR min_years < ?)')
+      values.push(yearsCap)
+    }
+  }
   if (options.search?.trim()) {
     clauses.push('(title LIKE ? OR company LIKE ? OR about_text LIKE ?)')
     const term = `%${options.search.trim()}%`
@@ -152,6 +183,15 @@ function buildFilter(options: ListJobsOptions) {
 
 export function jobExists(source: JobSource, jobId: string): boolean {
   return jobExistsStmt.get(source, jobId) !== undefined
+}
+
+/** The listing a URL was scraped from, newest first if the same link was seen twice. */
+export function findJobByUrl(url: string): JobRow | null {
+  const record = db.prepare('SELECT * FROM jobs WHERE url = ? ORDER BY id DESC LIMIT 1').get(url) as
+    | JobRecord
+    | undefined
+
+  return record ? toJobRow(record) : null
 }
 
 export function listJobs(options: ListJobsOptions = {}): JobRow[] {
@@ -272,6 +312,7 @@ export function getDbStats(): DbStats {
 export function insertJob(job: Job, runId: number | null = null): boolean {
   const isNew = !jobExists(job.source, job.jobId)
   const visa = classifyVisa(job.aboutText)
+  const experience = classifyExperience(job.title, job.aboutText)
 
   upsertJobStmt.run(
     job.source,
@@ -286,7 +327,10 @@ export function insertJob(job: Job, runId: number | null = null): boolean {
     job.workType,
     runId,
     visa.kind,
-    JSON.stringify(visa.evidence)
+    JSON.stringify(visa.evidence),
+    experience.senior ? 1 : 0,
+    experience.minYears,
+    JSON.stringify(experience.evidence)
   )
 
   return isNew
@@ -297,6 +341,17 @@ export function setJobVisas(rows: { id: number; kind: VisaKind; evidence: string
   withTransaction(() => {
     for (const row of rows) {
       updateVisaStmt.run(row.kind, JSON.stringify(row.evidence), row.id)
+    }
+  })
+}
+
+/** Rewrites the experience verdict on stored jobs, after the wording rules change. */
+export function setJobExperiences(
+  rows: { id: number; senior: boolean; minYears: number | null; evidence: string[] }[]
+) {
+  withTransaction(() => {
+    for (const row of rows) {
+      updateExperienceStmt.run(row.senior ? 1 : 0, row.minYears, JSON.stringify(row.evidence), row.id)
     }
   })
 }

@@ -372,6 +372,12 @@ interface AppConfig {
   retentionDays: number;
   /** Hard ceiling on how many jobs a single run will scrape per board. */
   maxJobsPerBoard: number;
+  /** The title sounds senior (Senior, Lead, Principal, Manager…). */
+  senior: boolean,
+  /** The largest minimum years of experience the posting states; null when it names none. */
+  minYears: number | null,
+  /** The phrases the verdict rests on, as written in the posting. */
+  experienceEvidence: string[],
   defaultDatePosted: DatePosted;
   /** A job at or above this score counts as a strong match. */
   matchThreshold: number;
@@ -388,6 +394,12 @@ interface DbStats {
   databaseBytes: number;
 }
 
+  /**
+   * Hides jobs that want more experience than you have. Every option hides senior
+   * titles; junior also hides a stated 3+ years, entry a stated 2+ years. A posting
+   * that states no years is kept.
+   */
+  experience?: 'not-senior' | 'junior' | 'entry';
 // ---------- scraping ----------
 
 type ScrapePhase =

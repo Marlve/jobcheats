@@ -24,6 +24,7 @@ const JOB_STATUSES: JobStatus[] = [
 const JOB_VIEWS: JobView[] = ['inbox', 'archive', 'all']
 const SORT_KEYS: NonNullable<ListJobsOptions['sortBy']>[] = ['score', 'date', 'company']
 const VISA_FILTERS: NonNullable<ListJobsOptions['visa']>[] = ['not-restricted', 'sponsors']
+const EXPERIENCE_FILTERS: NonNullable<ListJobsOptions['experience']>[] = ['not-senior', 'junior', 'entry']
 
 const MAX_TAGS = 20
 const MAX_TAG_LENGTH = 100
@@ -186,6 +187,7 @@ export function validateListJobsOptions(raw: unknown): ListJobsOptions {
   if (input.visa !== undefined) options.visa = asOneOf(input.visa, VISA_FILTERS, 'visa')
   if (input.minScore !== undefined) options.minScore = asNumberInRange(input.minScore, 'minScore', 0, 100)
   if (input.search !== undefined) {
+  if (input.experience !== undefined) options.experience = asOneOf(input.experience, EXPERIENCE_FILTERS, 'experience')
     if (typeof input.search !== 'string') throw new ValidationError('search must be a string')
     options.search = input.search.slice(0, 200)
   }

@@ -171,9 +171,10 @@
   color: var(--status-danger);
 }
 
-/* ---------- visa wording ---------- */
+/* ---------- visa wording and experience ---------- */
 
-.visa-chip {
+.visa-chip,
+.exp-chip {
   padding: 1px 8px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border-subtle);
