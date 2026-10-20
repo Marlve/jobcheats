@@ -1,10 +1,12 @@
 import { Frame, Locator, Page } from "playwright"
-import { decide, displayLabel, FormField } from "./matcher.js"
+import type { AnswerBank } from "./answers.js"
+import { decide, displayLabel, FormField, isCoverLetterField, isSavableQuestion } from "./matcher.js"
 
 /**
  * Reads the form in front of you and fills what the matcher is sure about.
  *
- * Its only clicks are on a Yes/No radio the profile has an answer for. It never
+ * Its only clicks are on a radio the profile or a saved answer settles, and (with
+ * cover letters switched on) a "Write a cover letter" radio. It never
  * presses Submit or Next and never ticks a checkbox, so a form can only ever be
  * sent by the person looking at it. (Stepping through LinkedIn's Easy Apply
  * popup is `flow.ts`'s job, and it never presses Submit either.)
@@ -48,6 +50,10 @@ function readFields(frame: Frame, within: string | undefined): Promise<FormField
       })
       return found
     }
+
+    // A multi-step form keeps earlier steps in the page, hidden. Their tags from
+    // the last read would collide with this read's ids.
+    deepAll(document, '[data-jc-field]').forEach(node => node.removeAttribute('data-jc-field'))
 
     let scope: ParentNode = document
     if (within) {
@@ -197,27 +203,78 @@ function holdsValue(target: Locator): Promise<boolean> {
  * A required field with no label of its own is almost always the hidden inner
  * input of a custom dropdown whose real, labelled control is listed beside it;
  * naming it would print "(unlabelled field)" under every such question.
+ *
+ * A required question that no answer exists for is also noted in the saved
+ * answers, so it can be answered once in JobCheats and never asked again.
  */
-function leaveUnfilled(report: FillReport, field: FormField) {
-  if (field.required && field.label.trim()) report.needsYou.push(displayLabel(field.label))
-  else report.skipped++
+function leaveUnfilled(report: FillReport, field: FormField, ctx: FillContext) {
+  if (field.required && field.label.trim()) {
+    report.needsYou.push(displayLabel(field.label))
+    if (ctx.answers && isSavableQuestion(field, ctx.profile)) ctx.answers.waiting(field.label, field.options)
+  } else {
+    report.skipped++
+  }
 }
 
-export async function fillPage(
+/**
+ * Writes the cover letter, or null when it cannot. Asked for only if the page
+ * has a cover-letter box, so a form without one costs nothing.
+ */
+export type LetterSource = () => Promise<string | null>
+
+/** Everything a fill needs to know besides the page. */
+export interface FillContext {
+  profile: Profile
+  resumePath: string | null
+  /** Present when cover letters are switched on. */
+  letter?: LetterSource
+  /** Present to fill from, learn into and note unanswered questions in the saved answers. */
+  answers?: AnswerBank
+}
+
+/** Time for a revealed text box to render after "Write a cover letter" is picked. */
+const REVEAL_MS = 800
+
+export async function fillPage(page: Page, ctx: FillContext, within?: string): Promise<FillReport> {
+  const first = await fillOnce(page, ctx, within)
+  if (!first.revealed) return first.report
+
+  // Choosing "Write a cover letter" puts a text box on the page that the first read could not see.
+  await page.waitForTimeout(REVEAL_MS)
+  const second = await fillOnce(page, ctx, within)
+
+  return {
+    filled: [...new Set([...first.report.filled, ...second.report.filled])],
+    needsYou: second.report.needsYou,
+    // The second read counts everything the first one filled as already holding a value.
+    skipped: Math.max(0, second.report.skipped - first.report.filled.length),
+  }
+}
+
+async function fillOnce(
   page: Page,
-  profile: Profile,
-  resumePath: string | null,
-  within?: string,
-): Promise<FillReport> {
+  ctx: FillContext,
+  within: string | undefined,
+): Promise<{ report: FillReport; revealed: boolean }> {
+  const { profile, resumePath, letter, answers } = ctx
   const report: FillReport = { filled: [], needsYou: [], skipped: 0 }
   const attempted: { field: FormField; target: Locator }[] = []
+  let revealed = false
 
   for (const frame of page.frames()) {
     // A frame can detach mid-read (an ad, a redirect); losing it is not losing the page.
     const fields = await readFields(frame, within).catch(() => [] as FormField[])
 
     for (const field of fields) {
-      const action = decide(field, profile)
+      // An answer already in the form is one you gave: keep it for next time.
+      if (field.value && answers && isSavableQuestion(field, profile)) {
+        answers.learn(field.label, field.value, field.options)
+      }
+
+      const action = decide(field, profile, {
+        writeLetters: letter !== undefined,
+        savedAnswer: answers && (label => answers.lookup(label)),
+      })
       let target = frame.locator(`[data-jc-field="${field.id}"]`)
       let sent = false
 
@@ -238,14 +295,22 @@ export async function fillPage(
         } else if (action?.kind === 'file' && resumePath) {
           await target.setInputFiles(resumePath, { timeout: FIELD_TIMEOUT_MS })
           sent = true
+        } else if (action?.kind === 'coverLetter' && letter) {
+          const text = await letter()
+          if (text) {
+            await target.fill(text, { timeout: FIELD_TIMEOUT_MS })
+            sent = true
+          }
         }
       } catch (err) {
         console.warn(`[autofill] could not fill "${field.label}":`, err instanceof Error ? err.message : err)
       }
 
+      if (sent && field.tag === 'radio' && isCoverLetterField(field)) revealed = true
+
       if (sent) attempted.push({ field, target })
       else if (field.value) report.skipped++
-      else leaveUnfilled(report, field)
+      else leaveUnfilled(report, field, ctx)
     }
   }
 
@@ -257,8 +322,8 @@ export async function fillPage(
 
   for (const { field, target } of attempted) {
     if (await holdsValue(target)) report.filled.push(displayLabel(field.label))
-    else leaveUnfilled(report, field)
+    else leaveUnfilled(report, field, ctx)
   }
 
-  return report
+  return { report, revealed }
 }

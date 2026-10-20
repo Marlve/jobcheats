@@ -69,6 +69,7 @@ export function SettingsScreen() {
   const [boards, setBoards] = useState<BoardPreference[]>([]);
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [coverLetters, setCoverLetters] = useState(false);
   const [keywordCount, setKeywordCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -90,11 +91,12 @@ export function SettingsScreen() {
   }, []);
 
   async function refresh() {
-    const [dbStats, meta, keywords, boardList, updateStatus] = await Promise.all([
+    const [dbStats, meta, keywords, boardList, letters, updateStatus] = await Promise.all([
       window.electron.getDbStats(),
       window.electron.getResume(),
       window.electron.listKeywords(),
       window.electron.listBoards(),
+      window.electron.getCoverLetterEnabled(),
       // The stored answer, not a fresh request — opening Settings should not
       // spend one of the hourly checks GitHub allows.
       window.electron.getUpdateStatus(),
@@ -103,6 +105,7 @@ export function SettingsScreen() {
     setResume(meta);
     setKeywordCount(keywords.length);
     setBoards(boardList);
+    setCoverLetters(letters);
     setUpdate(updateStatus);
   }
 
@@ -110,6 +113,10 @@ export function SettingsScreen() {
     setCheckingUpdate(true);
     setUpdate(await window.electron.checkForUpdates());
     setCheckingUpdate(false);
+  }
+
+  async function toggleCoverLetters(enabled: boolean) {
+    setCoverLetters(await window.electron.setCoverLetterEnabled(enabled));
   }
 
   async function toggleAutoCheck(enabled: boolean) {
@@ -232,6 +239,29 @@ export function SettingsScreen() {
               </ul>
             </section>
 
+            {/* ---------- cover letters ---------- */}
+            <section className="card">
+              <h2 className="t-body settings__title">Cover letters</h2>
+              <div className="settings__row">
+                <p className="t-body t-secondary settings__copy">
+                  When Autofill finds a cover letter box (Seek asks for one on most jobs), write a
+                  letter for that job with Claude and type it in. You read and edit it before
+                  anything is sent. Autofill runs <code>claude -p</code> on this computer, so
+                  Claude Code must be installed and signed in.
+                </p>
+                <Toggle
+                  checked={coverLetters}
+                  label="Write cover letters with Claude"
+                  onChange={toggleCoverLetters}
+                />
+              </div>
+              <p className="t-caption t-muted settings__privacy">
+                <IconWarning size={13} />
+                Off by default. Turning it on sends your resume text and the job description to
+                Anthropic, through your own Claude Code login, each time a letter is written.
+              </p>
+            </section>
+
             {/* ---------- storage ---------- */}
             <section className="card">
               <h2 className="t-body settings__title">What is stored</h2>
@@ -337,8 +367,8 @@ export function SettingsScreen() {
 
               <p className="t-caption t-muted settings__privacy">
                 <IconLock size={13} />
-                Your resume, its text and your LinkedIn session live only on this device. There is
-                no account and no telemetry.
+                Your resume, its text and your LinkedIn session live only on this device, except
+                for cover letters if you turn them on. There is no account and no telemetry.
               </p>
             </section>
 

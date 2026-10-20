@@ -120,6 +120,8 @@ export function validateScheduleConfig(raw: unknown): ScheduleConfig {
 }
 
 const MAX_PROFILE_LENGTH = 300
+/** Form labels are read at 200 characters; this leaves room for none to be cut. */
+const MAX_QUESTION_LENGTH = 300
 
 /** Missing fields read as empty, so a profile saved by an older version still loads. */
 export function validateProfile(raw: unknown): Profile {
@@ -185,9 +187,9 @@ export function validateListJobsOptions(raw: unknown): ListJobsOptions {
   if (input.view !== undefined) options.view = asOneOf(input.view, JOB_VIEWS, 'view')
   if (input.sortBy !== undefined) options.sortBy = asOneOf(input.sortBy, SORT_KEYS, 'sortBy')
   if (input.visa !== undefined) options.visa = asOneOf(input.visa, VISA_FILTERS, 'visa')
+  if (input.experience !== undefined) options.experience = asOneOf(input.experience, EXPERIENCE_FILTERS, 'experience')
   if (input.minScore !== undefined) options.minScore = asNumberInRange(input.minScore, 'minScore', 0, 100)
   if (input.search !== undefined) {
-  if (input.experience !== undefined) options.experience = asOneOf(input.experience, EXPERIENCE_FILTERS, 'experience')
     if (typeof input.search !== 'string') throw new ValidationError('search must be a string')
     options.search = input.search.slice(0, 200)
   }
@@ -251,6 +253,24 @@ export function validateVersion(raw: unknown): string {
     throw new ValidationError('version must be a version string like 1.2.0')
   }
   return raw.trim()
+}
+
+/** A form question as the form worded it, on its way to being matched against saved ones. */
+export function validateQuestion(raw: unknown): string {
+  if (typeof raw !== 'string') throw new ValidationError('question must be a string')
+
+  const question = raw.trim()
+  if (!question) throw new ValidationError('question cannot be empty')
+  if (question.length > MAX_QUESTION_LENGTH) {
+    throw new ValidationError(`question must be ${MAX_QUESTION_LENGTH} characters or fewer`)
+  }
+  return question
+}
+
+/** Empty is allowed: it puts a question back to waiting. The store trims it to its own limit. */
+export function validateAnswer(raw: unknown): string {
+  if (typeof raw !== 'string') throw new ValidationError('answer must be a string')
+  return raw
 }
 
 export function validateNotes(raw: unknown): string {

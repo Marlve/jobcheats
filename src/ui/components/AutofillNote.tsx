@@ -13,9 +13,9 @@ export function AutofillNote({ result }: { result: AutofillResult }) {
     );
   }
 
-  const { filled, needsYou, skipped, stoppedAt } = result;
+  const { filled, needsYou, skipped, stoppedAt, coverLetterError } = result;
 
-  if (filled.length === 0 && needsYou.length === 0 && !stoppedAt) {
+  if (filled.length === 0 && needsYou.length === 0 && !stoppedAt && !coverLetterError) {
     return (
       <div className="job__autofill t-caption t-secondary" role="status">
         No form to fill in the front tab. Get to the application form, then press Autofill again.
@@ -27,12 +27,13 @@ export function AutofillNote({ result }: { result: AutofillResult }) {
     <div className="job__autofill t-caption t-secondary" role="status">
       <p><strong>Filled {filled.length}:</strong> {filled.join(', ') || 'nothing'}</p>
       {needsYou.length > 0 && <p><strong>Still needs you:</strong> {needsYou.join(' · ')}</p>}
+      {coverLetterError && <p><strong>Cover letter not written:</strong> {coverLetterError}</p>}
       {skipped > 0 && <p className="t-muted">{skipped} other field{skipped === 1 ? '' : 's'} left alone.</p>}
       {stoppedAt === 'review' && (
         <p className="t-muted">Stopped on the last page. Check your answers, then press Submit yourself.</p>
       )}
       {stoppedAt === 'questions' && (
-        <p className="t-muted">Stopped on a step it cannot finish. Answer it in the window, then press Autofill again.</p>
+        <p className="t-muted">Stopped on a step it cannot finish. Answer it in the window (or under Saved answers on the Profile tab), then press Autofill again.</p>
       )}
       {!stoppedAt && <p className="t-muted">Nothing was submitted. Check the form, then press Submit yourself.</p>}
     </div>
