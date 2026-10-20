@@ -32,6 +32,7 @@ Rules:
 - 180 to 250 words in three short paragraphs. End with "Kind regards," and the applicant's name.
 - Use only facts that are in the résumé. Do not invent employers, degrees, skills, projects or numbers.
 - Pick the two or three parts of the résumé that fit this job best and say why they fit.
+- Leave education out entirely: no school, university, college, degree, course, grades or graduation date, and never say the applicant needs the role or an internship for their studies. Write about what they can do for this job, from their skills, projects and work.
 - Make no claims about visas, work rights or sponsorship.
 - Write like a person: specific and direct. No "I am writing to express my interest", no "passionate", no "excited to leverage".
 - Output only the letter.`
