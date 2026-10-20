@@ -31,4 +31,6 @@ export function registerApplyIPC() {
   ipcMain.handle("autofill", (_event, raw: unknown): Promise<AutofillResult> => {
     return applyService.autofill(validateWebUrl(raw))
   });
+
+  ipcMain.handle("cancelAutofill", (): Promise<void> => applyService.cancel());
 }

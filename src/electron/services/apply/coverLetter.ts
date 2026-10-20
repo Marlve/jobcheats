@@ -51,8 +51,17 @@ function buildPrompt(job: LetterJob, resume: string, applicant: string): string 
   ].join('\n\n')
 }
 
+/** Stops Claude and whatever the shell started for it; on Windows `kill` alone leaves the real process running. */
+function stop(child: ReturnType<typeof spawn>): void {
+  if (process.platform === 'win32' && child.pid) {
+    spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true }).on('error', () => child.kill())
+  } else {
+    child.kill()
+  }
+}
+
 /** Runs `claude -p` with the prompt on stdin, so its length never meets a command-line limit. */
-function runClaude(prompt: string): Promise<string> {
+function runClaude(prompt: string, signal?: AbortSignal): Promise<string> {
   const args = ['-p', '--output-format', 'text', '--tools', '', '--system-prompt', SYSTEM_PROMPT,
     '--no-session-persistence', '--disable-slash-commands']
 
@@ -72,6 +81,13 @@ function runClaude(prompt: string): Promise<string> {
         child.kill()
         reject(new Error('Claude took longer than two minutes.'))
       }, TIMEOUT_MS)
+
+      // Pausing an application stops the letter being written, so it stops costing tokens.
+      signal?.addEventListener('abort', () => {
+        clearTimeout(timer)
+        stop(child)
+        reject(new Error('Cancelled.'))
+      }, { once: true })
 
       child.stdout?.on('data', chunk => { output += chunk })
       child.stderr?.on('data', chunk => { errors += chunk })
@@ -109,8 +125,8 @@ function tidy(text: string): string {
 }
 
 /** Throws an Error whose message is fit to show the user. */
-export async function writeCoverLetter(job: LetterJob, resume: string, applicant: string): Promise<string> {
-  const letter = tidy(await runClaude(buildPrompt(job, resume, applicant)))
+export async function writeCoverLetter(job: LetterJob, resume: string, applicant: string, signal?: AbortSignal): Promise<string> {
+  const letter = tidy(await runClaude(buildPrompt(job, resume, applicant), signal))
   if (!letter) throw new Error('Claude sent back an empty reply.')
   return letter
 }

@@ -57,6 +57,9 @@ interface Window {
      */
     autofill: (url: string) => Promise<AutofillResult>;
 
+    /** Gives up on an autofill that is stuck: closes its window and stops any cover letter being written. */
+    cancelAutofill: () => Promise<void>;
+
     /** Whether Autofill writes cover letters with `claude -p`. Off until turned on. */
     getCoverLetterEnabled: () => Promise<boolean>;
 

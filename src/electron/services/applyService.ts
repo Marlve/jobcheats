@@ -48,6 +48,10 @@ let applyContext: BrowserContext | null = null
 /** The listing the window was opened for — what a cover letter is written about. */
 let applyJob: JobRow | null = null
 let letterPromise: Promise<string | null> | null = null
+/** Stops the letter being written when its window is put away, so it does not keep costing tokens. */
+let letterAbort: AbortController | null = null
+/** Bumped by a cancel, so a press that was cancelled can tell and leave the next window alone. */
+let generation = 0
 /** Why the last press could not write a letter, for the note under the job. */
 let letterError: string | null = null
 /** Autofill's own typing fires the events the watcher listens for, and it saves the answers itself. */
@@ -108,22 +112,26 @@ function letterSource(profile: Profile): LetterSource | undefined {
   if (!isCoverLetterEnabled()) return undefined
 
   return () => {
-    letterPromise ??= (async () => {
-      const resume = getResumeText()
-      if (!applyJob) throw new Error("This job's details are not stored, so there is nothing to write from.")
-      if (!resume) throw new Error('Upload your resume first.')
+    if (!letterPromise) {
+      const abort = (letterAbort = new AbortController())
+      letterPromise = (async () => {
+        const resume = getResumeText()
+        if (!applyJob) throw new Error("This job's details are not stored, so there is nothing to write from.")
+        if (!resume) throw new Error('Upload your resume first.')
 
-      return writeCoverLetter(
-        { title: applyJob.title, company: applyJob.company, location: applyJob.location, description: applyJob.aboutText },
-        resume,
-        [profile.firstName, profile.lastName].filter(Boolean).join(' '),
-      )
-    })().catch(err => {
-      letterPromise = null
-      letterError = err instanceof Error ? err.message : String(err)
-      console.warn('[autofill] cover letter failed:', letterError)
-      return null
-    })
+        return writeCoverLetter(
+          { title: applyJob.title, company: applyJob.company, location: applyJob.location, description: applyJob.aboutText },
+          resume,
+          [profile.firstName, profile.lastName].filter(Boolean).join(' '),
+          abort.signal,
+        )
+      })().catch(err => {
+        letterPromise = null
+        letterError = err instanceof Error ? err.message : String(err)
+        console.warn('[autofill] cover letter failed:', letterError)
+        return null
+      })
+    }
     return letterPromise
   }
 }
@@ -177,6 +185,8 @@ async function continueApplication(page: Page, context: BrowserContext, ctx: Fil
 }
 
 async function closeApplyWindow(): Promise<void> {
+  letterAbort?.abort()
+  letterAbort = null
   await playwrightService.closeBrowser()
   applyContext = null
   applyJob = null
@@ -263,6 +273,12 @@ async function openJob(url: string, ctx: FillContext): Promise<AutofillResult> {
 }
 
 export const applyService = {
+  /** Gives up on a press that is stuck: its window is put away and its letter stops being written. */
+  async cancel(): Promise<void> {
+    generation++
+    await closeApplyWindow()
+  },
+
   async autofill(url: string): Promise<AutofillResult> {
     const profile = readProfile()
     if (isEmpty(profile)) {
@@ -280,6 +296,7 @@ export const applyService = {
       letterOff: () => { letterError ??= 'Switched off. Turn on "Write cover letters with Claude" in Settings.' },
     }
 
+    const mine = generation
     autofilling = true
     try {
       // A different job starts a fresh window; the same one carries on in the one that is open.
@@ -291,6 +308,9 @@ export const applyService = {
 
       return finish(await continueApplication(page, applyContext, ctx))
     } catch (err) {
+      // A cancelled press fails because its window went; the window now open is not its to close.
+      if (mine !== generation) return { ok: false, error: 'Paused.' }
+
       console.error('[autofill] failed:', err)
       await closeApplyWindow()
       return { ok: false, error: 'The browser stopped responding, so its window was closed. Try again.' }

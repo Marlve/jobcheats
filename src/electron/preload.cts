@@ -51,6 +51,7 @@ electron.contextBridge.exposeInMainWorld("electron", {
   saveProfile: (profile: Profile) => electron.ipcRenderer.invoke("saveProfile", profile),
 
   autofill: (url: string) => electron.ipcRenderer.invoke("autofill", url),
+  cancelAutofill: () => electron.ipcRenderer.invoke("cancelAutofill"),
   listAnswers: () => electron.ipcRenderer.invoke("listAnswers"),
   saveAnswer: (question: string, answer: string) =>
     electron.ipcRenderer.invoke("saveAnswer", question, answer),
