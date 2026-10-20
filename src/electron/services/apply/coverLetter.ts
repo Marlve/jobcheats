@@ -78,7 +78,7 @@ function runClaude(prompt: string, signal?: AbortSignal): Promise<string> {
 
     const attach = (child: ReturnType<typeof start>, canRetry: boolean) => {
       const timer = setTimeout(() => {
-        child.kill()
+        stop(child)
         reject(new Error('Claude took longer than two minutes.'))
       }, TIMEOUT_MS)
 
