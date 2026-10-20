@@ -205,7 +205,8 @@ export function decide(field: FormField, profile: Profile, options: DecideOption
   }
 
   if (field.tag === 'textarea') {
-    return isCoverLetterField(field) && !field.value ? { kind: 'coverLetter' } : null
+    // With letters on, a letter already in the box (Seek keeps your last one) is replaced by this job's.
+    return isCoverLetterField(field) && (options.writeLetters || !field.value) ? { kind: 'coverLetter' } : null
   }
 
   if (field.tag === 'select' || field.tag === 'radio') {
