@@ -2,9 +2,11 @@ import { BrowserContext, Page } from "playwright"
 import { findJobByUrl, getResumeText, isCoverLetterEnabled, readStoredProfile, writeStoredProfile } from "../db/db.js"
 import { validateProfile } from "../ipc/validate.js"
 import { writeCoverLetter } from "./apply/coverLetter.js"
-import { fillPage, FillContext, FillReport, LetterSource } from "./apply/fillPage.js"
+import { fillPage, FillContext, FillReport, learnTyped, LetterSource } from "./apply/fillPage.js"
 import { findApplyButton, followExternalApply, isEasyApplyOpen, openEasyApply, runEasyApply, runForm } from "./apply/flow.js"
 import { openAnswers } from "./answerService.js"
+import { watchSubmitted } from "./apply/submitWatcher.js"
+import { watchTyping } from "./apply/typingWatcher.js"
 import { playwrightService } from "./playwrightService.js"
 import { resumeService } from "./resumeService.js"
 import { signInService } from "./signInService.js"
@@ -20,8 +22,14 @@ import { signInService } from "./signInService.js"
  * pressing again fills whichever tab you are looking at, carrying on with the
  * popup if one is open. Submit is never pressed.
  *
+ * The window is put away when it is no longer needed: when a different job is
+ * autofilled, a few seconds after a page says the application was sent, and
+ * when the browser stops responding. It holds the browser lock, so left open it
+ * would also stop the next scan.
+ *
  * Questions are answered from the saved answers (answerService), which also
- * learn what you type into a form and note the questions it could not answer.
+ * learn what you type into a form — as you leave each field, not only when
+ * Autofill is pressed — and note the questions it could not answer.
  *
  * With cover letters switched on in Settings, a cover-letter box is filled with
  * a letter written by `claude -p` from the résumé and the listing.
@@ -42,6 +50,17 @@ let applyJob: JobRow | null = null
 let letterPromise: Promise<string | null> | null = null
 /** Why the last press could not write a letter, for the note under the job. */
 let letterError: string | null = null
+/** Autofill's own typing fires the events the watcher listens for, and it saves the answers itself. */
+let autofilling = false
+let stopWatching: (() => void) | null = null
+let stopWatchingSent: (() => void) | null = null
+/** The listing the window was opened from, to tell "carry on" from "a different job". */
+let applyUrl: string | null = null
+/** Whether Autofill has filled anything here, so a page that merely mentions "application sent" is not taken for one. */
+let filledSomething = false
+
+/** How long the confirmation stays up before the window goes, so it can be read. */
+const CLOSE_AFTER_SENT_MS = 5_000
 
 export function readProfile(): Profile {
   const stored = readStoredProfile()
@@ -157,7 +176,33 @@ async function continueApplication(page: Page, context: BrowserContext, ctx: Fil
   return applied ?? { ok: true, stage: 'filled', ...report }
 }
 
-function withLetterNote(result: AutofillResult): AutofillResult {
+async function closeApplyWindow(): Promise<void> {
+  await playwrightService.closeBrowser()
+  applyContext = null
+  applyJob = null
+  applyUrl = null
+  letterPromise = null
+  filledSomething = false
+  stopWatching?.()
+  stopWatching = null
+  stopWatchingSent?.()
+  stopWatchingSent = null
+}
+
+/** Saves the answers typed in the window so far, without waiting for another press. */
+async function learnFromWindow(context: BrowserContext): Promise<void> {
+  if (autofilling || applyContext !== context) return
+
+  const profile = readProfile()
+  const { bank, save } = openAnswers()
+  for (const page of context.pages()) await learnTyped(page, bank, profile).catch(() => {})
+  save()
+}
+
+/** What a press hands back: the cover-letter problem, if any, added, and a note that something was filled. */
+function finish(result: AutofillResult): AutofillResult {
+  if (result.ok && result.stage === 'filled' && result.filled.length > 0) filledSomething = true
+
   return letterError && result.ok && result.stage === 'filled'
     ? { ...result, coverLetterError: letterError }
     : result
@@ -174,13 +219,31 @@ async function openJob(url: string, ctx: FillContext): Promise<AutofillResult> {
   const { page, context } = await playwrightService.openBrowser(true)
   applyContext = context
   applyJob = findJobByUrl(url)
+  applyUrl = url
   letterPromise = null
+  filledSomething = false
   context.once('close', () => {
     if (applyContext === context) {
       applyContext = null
       applyJob = null
+      applyUrl = null
       letterPromise = null
+      filledSomething = false
+      stopWatching?.()
+      stopWatching = null
+      stopWatchingSent?.()
+      stopWatchingSent = null
     }
+  })
+
+  stopWatchingSent = watchSubmitted(context, () => filledSomething, () => {
+    setTimeout(() => { if (applyContext === context) void closeApplyWindow() }, CLOSE_AFTER_SENT_MS)
+  })
+
+  // Not being able to watch only means answers are learned on the next press instead.
+  stopWatching = await watchTyping(context, () => learnFromWindow(context)).catch(err => {
+    console.warn('[autofill] not watching what is typed:', err instanceof Error ? err.message : err)
+    return null
   })
 
   // The window is already open and useful if the page is slow or down, so a
@@ -213,21 +276,28 @@ export const applyService = {
       resumePath: resumeService.storedResumePath(),
       letter: letterSource(profile),
       answers: bank,
+      // Shown as "Cover letter not written: …" under the job.
+      letterOff: () => { letterError ??= 'Switched off. Turn on "Write cover letters with Claude" in Settings.' },
     }
 
+    autofilling = true
     try {
-      if (!applyContext) return withLetterNote(await openJob(url, ctx))
+      // A different job starts a fresh window; the same one carries on in the one that is open.
+      if (applyContext && applyUrl !== url) await closeApplyWindow()
+      if (!applyContext) return finish(await openJob(url, ctx))
 
       const page = await frontPage(applyContext)
       if (!page) return { ok: false, error: 'The application window has no page open.' }
 
-      return withLetterNote(await continueApplication(page, applyContext, ctx))
+      return finish(await continueApplication(page, applyContext, ctx))
     } catch (err) {
       console.error('[autofill] failed:', err)
-      return { ok: false, error: 'The browser stopped responding. Close its window and try again.' }
+      await closeApplyWindow()
+      return { ok: false, error: 'The browser stopped responding, so its window was closed. Try again.' }
     } finally {
       // Whatever was learned before a failure is still worth keeping.
       save()
+      autofilling = false
     }
   },
 }
