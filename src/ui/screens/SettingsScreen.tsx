@@ -74,6 +74,7 @@ export function SettingsScreen() {
   const [loading, setLoading] = useState(true);
 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const [busy, setBusy] = useState(false);
   /** Outcome of the last action, shown until the next one replaces it. */
   const [notice, setNotice] = useState<string | null>(null);
@@ -163,6 +164,19 @@ export function SettingsScreen() {
       deleted === 0
         ? 'Nothing was old enough to delete.'
         : `Deleted ${deleted} expired job${deleted === 1 ? '' : 's'}.`
+    );
+  }
+
+  async function clearInbox() {
+    setBusy(true);
+    setConfirmingClear(false);
+    const deleted = await window.electron.deleteInboxJobs();
+    await refresh();
+    setBusy(false);
+    setNotice(
+      deleted === 0
+        ? 'The inbox was already empty.'
+        : `Deleted ${deleted} inbox job${deleted === 1 ? '' : 's'}. Saved and applied jobs were kept.`
     );
   }
 
@@ -316,6 +330,22 @@ export function SettingsScreen() {
                   {' '}The sweep also runs on launch and after every scan.
                 </p>
                 <Button size="sm" disabled={busy} onClick={runCleanup}>Run cleanup now</Button>
+              </div>
+
+              <div className="settings__row">
+                <p className="t-caption t-muted">
+                  Delete everything left in the inbox ({stats.inboxCount}) now. Saved and applied
+                  jobs stay, and so do jobs you marked "Not for me", so a scan does not bring them back.
+                </p>
+                <Button
+                  size="sm"
+                  variant={confirmingClear ? 'danger-solid' : 'secondary'}
+                  disabled={busy || stats.inboxCount === 0}
+                  onClick={() => (confirmingClear ? void clearInbox() : setConfirmingClear(true))}
+                  onBlur={() => setConfirmingClear(false)}
+                >
+                  {confirmingClear ? `Delete ${stats.inboxCount} for good?` : 'Delete inbox jobs'}
+                </Button>
               </div>
             </section>
 

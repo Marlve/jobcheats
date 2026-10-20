@@ -108,6 +108,8 @@ electron.contextBridge.exposeInMainWorld("electron", {
 
   pruneOldJobs: () => electron.ipcRenderer.invoke("pruneOldJobs"),
 
+  deleteInboxJobs: () => electron.ipcRenderer.invoke("deleteInboxJobs"),
+
   getAppConfig: () => electron.ipcRenderer.invoke("getAppConfig"),
 
   // ---- resume ----

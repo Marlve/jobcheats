@@ -124,6 +124,9 @@ interface Window {
 
     pruneOldJobs: () => Promise<number>;
 
+    /** Deletes every job still in the inbox. Saved, applied and removed jobs are kept. */
+    deleteInboxJobs: () => Promise<number>;
+
     getAppConfig: () => Promise<AppConfig>;
 
     // ---- resume ----

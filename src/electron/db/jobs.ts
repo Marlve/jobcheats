@@ -437,3 +437,19 @@ export function pruneOldJobs(retentionDays = RETENTION_DAYS): number {
 
   return deleted
 }
+
+/**
+ * Empties the inbox now rather than waiting for retention. Only jobs nobody has
+ * acted on go: saved and applied jobs are your history, and a job marked "Not
+ * for me" stays so the next scan does not add it back.
+ */
+export function deleteInboxJobs(): number {
+  const { changes } = db
+    .prepare(`DELETE FROM jobs WHERE status IN (${placeholders(INBOX_STATUSES.length)})`)
+    .run(...INBOX_STATUSES)
+
+  const deleted = Number(changes)
+  console.log(`[db] deleted ${deleted} inbox job(s) by request`)
+
+  return deleted
+}

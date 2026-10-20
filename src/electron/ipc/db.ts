@@ -2,6 +2,7 @@ import { ipcMain } from "electron"
 import { appConfig } from "../config.js"
 import {
   countJobs,
+  deleteInboxJobs,
   getDbStats,
   listJobs,
   listRuns,
@@ -37,6 +38,8 @@ export function registerDbIPC() {
   ipcMain.handle("getDbStats", (): DbStats => getDbStats())
 
   ipcMain.handle("pruneOldJobs", (): number => pruneOldJobs())
+
+  ipcMain.handle("deleteInboxJobs", (): number => deleteInboxJobs())
 
   ipcMain.handle("getAppConfig", (): AppConfig => appConfig())
 
