@@ -28,6 +28,30 @@ export function jobUrlFromId(jobId: string): string {
   return `${JAPAN_DEV_BASE}/jobs/${jobId}`
 }
 
+// ---------- the sitemap ----------
+
+/** Every address a sitemap (or a sitemap index) names. */
+export function sitemapLocations(xml: string): string[] {
+  return [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map(match => match[1])
+}
+
+/**
+ * The postings a sitemap lists, as "company-slug/job-slug" ids. It names every
+ * open posting, where the list page carries only its first 60, but gives no
+ * title, place or date: only the address, which has the title's words in it.
+ */
+export function jobIdsFromSitemap(xml: string): string[] {
+  const ids = sitemapLocations(xml)
+    .map(loc => loc.match(/^https:\/\/japan-dev\.com\/jobs\/([^/?#]+\/[^/?#]+)$/)?.[1])
+    .filter((id): id is string => Boolean(id))
+  return [...new Set(ids)]
+}
+
+/** The title's words as the address spells them, enough to rule a posting out before opening it. */
+export function titleFromJobId(jobId: string): string {
+  return (jobId.split('/')[1] ?? '').replace(/-+/g, ' ')
+}
+
 // ---------- the list page ----------
 
 /** One posting as the list page shows it. */
