@@ -29,12 +29,16 @@ const RULES = `Write a cover letter for the job below, for the applicant whose r
 
 Rules:
 - Plain text only: no markdown, no subject line, no placeholders such as [Company].
-- 180 to 250 words in three short paragraphs. End with "Kind regards," and the applicant's name.
+- 120 to 170 words in two short paragraphs. Start "Hi," or "Dear Hiring Team,". End with "Kind regards," and the applicant's name.
 - Use only facts that are in the résumé. Do not invent employers, degrees, skills, projects or numbers.
-- Pick the two or three parts of the résumé that fit this job best and say why they fit.
-- Leave education out entirely: no school, university, college, degree, course, grades or graduation date, and never say the applicant needs the role or an internship for their studies. Write about what they can do for this job, from their skills, projects and work.
+- Make it specific to this posting. Find two or three concrete details in it (a product, a tool or language, a responsibility, the kind of customer or team) and build the letter on them. Every sentence should be one that would be odd in a letter for a different job; if a sentence could be pasted into any application, cut it.
+- Choose the project or piece of work from the résumé that overlaps most with those details, and say what the applicant built and how it relates to them. Pick a different project when a different one fits better; do not default to the most impressive one. Mention a second only in passing. Use at most one number, and only if it is striking. Do not list the résumé.
+- Open with the one thing in the posting that interests the applicant, in your own words, and name the role in passing. Never start with "I'm applying for" or "I am writing", and never use the phrase "caught my eye". Say nothing about the company that the posting does not say, and do not praise it. Do not repeat the job description back to the employer.
+- If the posting is thin, write less and stay concrete rather than padding.
+- Leave education out entirely: no school, university, college, degree, course, grades or graduation date, and never say the applicant needs the role or an internship for their studies.
 - Make no claims about visas, work rights or sponsorship.
-- Write like a person: specific and direct. No "I am writing to express my interest", no "passionate", no "excited to leverage".
+- Write the way a friendly, competent person writes an email, in the first person. Contractions are fine. Vary sentence length.
+- Avoid these, which make a letter sound machine-written: a contrast of the form "not X but Y"; lists of three; dashes (use commas or full stops); a closing line that restates the letter or promises what the applicant "would bring"; lines that announce a point ("Here's the thing"); words like passionate, excited, thrilled, leverage, robust, pivotal, valuable, showcase, "real-world"; "-ing" tails such as "ensuring" or "highlighting".
 - Output only the letter.`
 
 function buildPrompt(job: LetterJob, resume: string, applicant: string): string {
