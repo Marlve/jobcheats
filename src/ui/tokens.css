@@ -5,8 +5,8 @@
  * glaring on a laptop screen, so the same token names now hold a soft charcoal
  * palette: no pure black or pure white, which keeps contrast comfortable.
  * The greys lean slightly indigo so the surfaces read as layers rather than one
- * flat slab. The accent stays neutral — a soft light grey, bright enough to
- * read as filled against the dark surfaces but not a white block.
+ * flat slab, and the accent is a soft violet from the same family: bright enough
+ * to read as filled against the dark surfaces, never a white block.
  */
 
 :root {
@@ -30,19 +30,24 @@
   --text-secondary: #a8a8b5;
   --text-muted: #8888a0;
 
-  /* accent — neutral soft grey, not a hue */
-  --accent-base: #d9d9e2;
-  --accent-hover: #c2c2cd;
-  --accent-dim: #3a3a48;
-  --accent-subtle: #20202a;
-  --accent-border: #444453;
-  --accent-on: #101015;
+  /* accent — soft violet. Swapping the hue means changing these six and the
+     two glows below. */
+  --accent-base: #a396ff;
+  --accent-hover: #b8aeff;
+  --accent-dim: #353064;
+  --accent-subtle: #1f1c3a;
+  --accent-border: #4d4789;
+  --accent-on: #0e0c1c;
 
-  /* Depth: a faint cool glow at the top of the page, and a hairline of light
-     along the top edge of raised surfaces. */
-  --glow: rgb(120 120 255 / 9%);
-  --edge-highlight: inset 0 1px 0 rgb(255 255 255 / 4%);
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 35%);
+  /* Depth: a cool glow at the top of the page and a fainter one at the bottom,
+     a sheen across the top of raised surfaces with a hairline of light along
+     their edge, and a shadow that lifts them off the page. */
+  --glow: rgb(130 110 255 / 17%);
+  --glow-soft: rgb(130 110 255 / 7%);
+  --sheen: linear-gradient(180deg, rgb(255 255 255 / 3.5%), transparent 55%);
+  --edge-highlight: inset 0 1px 0 rgb(255 255 255 / 6%);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 35%), 0 10px 28px -18px rgb(0 0 0 / 70%);
+  --shadow-hover: 0 12px 32px -16px rgb(120 100 255 / 38%);
 
   /* The one accent. Scores at or above the match threshold are green; anything
      below is neutral, so colour marks "worth your time" rather than encoding a
@@ -97,7 +102,9 @@
   --caption-line: 16px;
   --caption-weight: 400;
 
-  /* shape */
+  /* shape: sm for small items inside a popover or panel, md for controls
+     (buttons, inputs, dropdowns, tiles) and panels inside a card, lg for
+     surfaces (cards, modals, banners). Pills are for tags, status and progress only. */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
