@@ -42,11 +42,12 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  transition: border-color 120ms ease;
+  transition: border-color 120ms ease, background-color 120ms ease;
 }
 
 .job:hover {
-  border-color: var(--border-default);
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
 }
 
 .job--open {

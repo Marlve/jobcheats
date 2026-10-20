@@ -2,10 +2,10 @@ import {
   IconArchive,
   IconInbox,
   IconInsights,
-  IconLock,
   IconPipeline,
   IconScan,
   IconSettings,
+  IconSidebar,
   IconUser,
 } from './Icons';
 
@@ -24,9 +24,15 @@ const NAV: { route: Route; label: string; Icon: (p: { size?: number }) => React.
 export function Sidebar({
   route,
   onNavigate,
+  rail,
+  onToggleRail,
 }: {
   route: Route;
   onNavigate: (route: Route) => void;
+  /** Showing as an icon rail. */
+  rail: boolean;
+  /** Absent when the window is too narrow to leave the rail. */
+  onToggleRail?: () => void;
 }) {
   return (
     <nav className="sidebar">
@@ -63,21 +69,19 @@ export function Sidebar({
         ))}
       </ul>
 
-      {/* The app holds a resume and a live LinkedIn session, so say plainly
-          where that data goes. */}
-      <div
-        className="sidebar__privacy"
-        title="Local only — no account, no cloud, no telemetry."
-      >
-        <span className="sidebar__privacy-title">
-          <IconLock size={14} />
-          <span className="sidebar__label">Local only</span>
-        </span>
-        <p className="t-caption t-muted sidebar__label">
-          No account, no cloud, no telemetry. Your resume and LinkedIn session never leave this
-          device.
-        </p>
-      </div>
+      {onToggleRail && (
+        <button
+          type="button"
+          className="sidebar__link sidebar__collapse"
+          onClick={onToggleRail}
+          aria-expanded={!rail}
+          title={rail ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <IconSidebar size={17} />
+          <span className="sidebar__label">Collapse</span>
+        </button>
+      )}
     </nav>
   );
 }

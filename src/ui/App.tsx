@@ -10,10 +10,46 @@ import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import './App.css';
 
+const NARROW_WINDOW = '(max-width: 840px)';
+const COLLAPSED_KEY = 'sidebar.collapsed';
+
+/** Storage can be blocked or empty; the sidebar should still open. */
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 function App() {
   // Insights is the design's default landing tab, and the resume lives inside
   // it until the insights screen itself is designed.
   const [route, setRoute] = useState<Route>('insights');
+
+  // The sidebar is an icon rail when collapsed by hand, and always in a narrow
+  // window, where the content needs the room more than the labels do.
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW_WINDOW).matches);
+
+  useEffect(() => {
+    const query = window.matchMedia(NARROW_WINDOW);
+    const onChange = () => setNarrow(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0');
+    } catch {
+      // Not remembered across launches; nothing else depends on it.
+    }
+  }
+
+  const rail = collapsed || narrow;
 
   // The notice lives here rather than on a screen: it is about the app, and it
   // should not vanish because you changed tab.
@@ -41,8 +77,13 @@ function App() {
   const ownsWindowButtons = Boolean(window.electron) && window.electron.platform !== 'darwin';
 
   return (
-    <div className={`app${showUpdate ? ' app--notified' : ''}`}>
-      <Sidebar route={route} onNavigate={setRoute} />
+    <div className={`app${showUpdate ? ' app--notified' : ''}${rail ? ' app--rail' : ''}`}>
+      <Sidebar
+        route={route}
+        onNavigate={setRoute}
+        rail={rail}
+        onToggleRail={narrow ? undefined : toggleCollapsed}
+      />
 
       <main className="screen">
         {(route === 'insights' || route === 'resume') && <ResumeScreen />}
