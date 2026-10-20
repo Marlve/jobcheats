@@ -57,6 +57,19 @@ interface Window {
      */
     autofill: (url: string) => Promise<AutofillResult>;
 
+    /** Whether Autofill writes cover letters with `claude -p`. Off until turned on. */
+    getCoverLetterEnabled: () => Promise<boolean>;
+
+    setCoverLetterEnabled: (enabled: boolean) => Promise<boolean>;
+
+    /** Form questions with the answer to give each time they come up. Each call returns the whole list. */
+    listAnswers: () => Promise<SavedAnswer[]>;
+
+    /** Sets the answer to a question; an empty answer puts it back to waiting. */
+    saveAnswer: (question: string, answer: string) => Promise<SavedAnswer[]>;
+
+    deleteAnswer: (question: string) => Promise<SavedAnswer[]>;
+
     // ---- scheduled scan ----
 
     /** Where the saved schedule stands, including whether its Windows task exists. */
@@ -176,6 +189,21 @@ interface Profile {
   needsSponsorship: YesNo;
 }
 
+/**
+ * A form question and what to answer it. An empty `answer` is a question
+ * Autofill met and could not answer — waiting for you to.
+ */
+interface SavedAnswer {
+  /** As the form worded it. Two wordings that differ only in case or punctuation are the same question. */
+  question: string;
+  answer: string;
+  /** The choices the form offered, when it was a dropdown or radio group; empty for a typed answer. */
+  options: string[];
+  /** Typed here, or copied from what you entered in a form. Typed answers are never overwritten by a form. */
+  source: 'typed' | 'learned';
+  seenAt: string;
+}
+
 type AutofillResult =
   | { ok: true; stage: 'opened' }
   | {
@@ -188,6 +216,8 @@ type AutofillResult =
       skipped: number;
       /** Easy Apply only: on its last page (Submit is yours), or stuck on a step that needs you. */
       stoppedAt?: 'review' | 'questions';
+      /** Cover letters are on but one could not be written; why, in a sentence. */
+      coverLetterError?: string;
     }
   | { ok: false; error: string }
 
@@ -342,6 +372,12 @@ interface JobRow extends Job {
   visa: VisaKind,
   /** The phrases the verdict rests on, as written in the posting. */
   visaEvidence: string[],
+  /** The title sounds senior (Senior, Lead, Principal, Manager…). */
+  senior: boolean,
+  /** The largest minimum years of experience the posting states; null when it names none. */
+  minYears: number | null,
+  /** The phrases the verdict rests on, as written in the posting. */
+  experienceEvidence: string[],
   notes: string | null,
   runId: number | null,
   firstSeenAt: string,
@@ -358,6 +394,12 @@ interface ListJobsOptions {
   minScore?: number;
   /** not-restricted hides jobs that say you need existing work rights. */
   visa?: 'not-restricted' | 'sponsors';
+  /**
+   * Hides jobs that want more experience than you have. Every option hides senior
+   * titles; junior also hides a stated 3+ years, entry a stated 2+ years. A posting
+   * that states no years is kept.
+   */
+  experience?: 'not-senior' | 'junior' | 'entry';
   sortBy?: 'score' | 'date' | 'company';
   /** Case-insensitive substring match over title, company and description. */
   search?: string;

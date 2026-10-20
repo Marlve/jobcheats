@@ -1,12 +1,12 @@
 /* One tone per kind of outcome: green is progress, red is a no from them,
    amber is waiting, blue is in progress, grey is you stepping back. */
 .pipeline__card {
-  --pl-neutral: #2b2a31;
-  --pl-info: #5b7fb5;
-  --pl-warn: #d19a3a;
-  --pl-success: #2f9e6e;
-  --pl-danger: #cf5c63;
-  --pl-muted: #b4b4bc;
+  --pl-neutral: #d4d4da;
+  --pl-info: #7b9fd5;
+  --pl-warn: #e0b05a;
+  --pl-success: #4cc79a;
+  --pl-danger: #e07f86;
+  --pl-muted: #5a5a63;
 
   padding: 16px 20px;
   overflow-x: auto;

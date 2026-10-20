@@ -51,6 +51,13 @@ electron.contextBridge.exposeInMainWorld("electron", {
   saveProfile: (profile: Profile) => electron.ipcRenderer.invoke("saveProfile", profile),
 
   autofill: (url: string) => electron.ipcRenderer.invoke("autofill", url),
+  listAnswers: () => electron.ipcRenderer.invoke("listAnswers"),
+  saveAnswer: (question: string, answer: string) =>
+    electron.ipcRenderer.invoke("saveAnswer", question, answer),
+  deleteAnswer: (question: string) => electron.ipcRenderer.invoke("deleteAnswer", question),
+  getCoverLetterEnabled: () => electron.ipcRenderer.invoke("getCoverLetterEnabled"),
+  setCoverLetterEnabled: (enabled: boolean) =>
+    electron.ipcRenderer.invoke("setCoverLetterEnabled", enabled),
 
   // ---- scheduled scan ----
   getSchedule: () => electron.ipcRenderer.invoke("getSchedule"),

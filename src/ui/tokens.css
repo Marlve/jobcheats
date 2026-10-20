@@ -1,42 +1,48 @@
 /**
  * Design tokens for JobCheats.
  *
- * Sampled from the rendered pixels of the design exports in /design, not from
- * the hex labels printed in the "Color tokens" frame — those labels (and the
- * "Dark surfaces … Blue accent" caption on the Color header) are stale from an
- * earlier dark revision and disagree with every swatch they sit under.
- *
- * The shipped design is light, and the accent is near-black rather than blue.
- *
- * Light only — the design ships a single theme.
+ * Dark only. The original light design (white surfaces, near-black accent) was
+ * glaring on a laptop screen, so the same token names now hold a soft charcoal
+ * palette: no pure black or pure white, which keeps contrast comfortable.
+ * The greys lean slightly indigo so the surfaces read as layers rather than one
+ * flat slab. The accent stays neutral — a soft light grey, bright enough to
+ * read as filled against the dark surfaces but not a white block.
  */
 
 :root {
-  /* surfaces — lightest to darkest */
-  --bg-canvas: #fafafa;
-  --bg-surface: #ffffff;
-  --bg-elevated: #ffffff;
-  --bg-inset: #f6f6f6;
-  --bg-subtle: #f2f2f2;
-  --bg-hover: #f0f0f0;
+  color-scheme: dark;
+
+  /* surfaces — darkest to lightest */
+  --bg-canvas: #101015;
+  --bg-surface: #191920;
+  --bg-elevated: #20202a;
+  --bg-inset: #14141a;
+  --bg-subtle: #262631;
+  --bg-hover: #2c2c38;
 
   /* borders */
-  --border-subtle: #f2f2f2;
-  --border-default: #ececec;
-  --border-strong: #dcdcdc;
+  --border-subtle: #22222b;
+  --border-default: #2e2e3a;
+  --border-strong: #444453;
 
   /* text */
-  --text-primary: #141316;
-  --text-secondary: #656565;
-  --text-muted: #999999;
+  --text-primary: #e4e4ea;
+  --text-secondary: #a8a8b5;
+  --text-muted: #8888a0;
 
-  /* accent — neutral near-black, not a hue */
-  --accent-base: #141316;
-  --accent-hover: #2f2d33;
-  --accent-dim: #e0e0e0;
-  --accent-subtle: #f6f6f6;
-  --accent-border: #dcdcdc;
-  --accent-on: #ffffff;
+  /* accent — neutral soft grey, not a hue */
+  --accent-base: #d9d9e2;
+  --accent-hover: #c2c2cd;
+  --accent-dim: #3a3a48;
+  --accent-subtle: #20202a;
+  --accent-border: #444453;
+  --accent-on: #101015;
+
+  /* Depth: a faint cool glow at the top of the page, and a hairline of light
+     along the top edge of raised surfaces. */
+  --glow: rgb(120 120 255 / 9%);
+  --edge-highlight: inset 0 1px 0 rgb(255 255 255 / 4%);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 35%);
 
   /* The one accent. Scores at or above the match threshold are green; anything
      below is neutral, so colour marks "worth your time" rather than encoding a
@@ -46,22 +52,27 @@
      This deliberately does not define per-band hues. An earlier revision gave
      Strong/Good/Marginal/Weak their own colours, which meant a reader had to
      learn that blue ranked below green. */
-  --score-strong: #04543a;
+  --score-strong: #4cc79a;
+  --score-strong-on: #0b2a1f;
 
   /* status */
-  --status-danger: #9b2c2c;
-  --status-warning: #6b5514;
-  --status-danger-surface: #f2e9e9;
-  --status-danger-surface-strong: #f0e0e0;
-  --status-danger-border: #d2a0a0;
-  --status-warning-surface: #fae0a2;
-  --status-warning-border: #ddc691;
-  --status-positive-border: #a0bbb1;
+  --status-danger: #f08a8a;
+  --status-warning: #e2c36b;
+  --status-danger-surface: #2d1d1f;
+  --status-danger-surface-strong: #3a2224;
+  --status-danger-border: #6b3a3d;
+  --status-warning-surface: #3a3014;
+  --status-warning-border: #6b5a25;
+  --status-positive-border: #2f6b55;
 
-  /* overlay — #141316 at 78%, measured by regressing the modal export against
-     the same screen without the modal. */
-  --scrim: rgb(20 19 22 / 78%);
-  --shadow-modal: 0 24px 64px rgb(20 19 22 / 18%), 0 2px 8px rgb(20 19 22 / 8%);
+  /* Solid danger buttons keep white text in both states, so they need a fill
+     that stays dark enough for it — --status-danger is a light text colour. */
+  --danger-solid: #9b2c2c;
+  --danger-solid-hover: #832525;
+
+  /* overlay */
+  --scrim: rgb(0 0 0 / 70%);
+  --shadow-modal: 0 24px 64px rgb(0 0 0 / 50%), 0 2px 8px rgb(0 0 0 / 30%);
 
   /* type ramp — Inter */
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -93,6 +104,9 @@
   --radius-pill: 999px;
 
   --sidebar-width: 244px;
+  /* Collapsing the sidebar to its icon rail, and back. */
+  --rail-duration: 220ms;
+  --rail-ease: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* The app draws its own title bar, so the top of the window is reserved for
      it: the window buttons on Windows and Linux, the traffic lights on macOS.
@@ -104,13 +118,6 @@
      lines stay readable on a wide monitor. */
   --content-max: none;
   --gutter: clamp(16px, 2.2vw, 32px);
-}
-
-/* Narrow windows: the sidebar drops to an icon rail so the content keeps room. */
-@media (max-width: 840px) {
-  :root {
-    --sidebar-width: 60px;
-  }
 }
 
 /* ---------- reset ---------- */
@@ -135,6 +142,10 @@ body {
   font-size: var(--body-size);
   line-height: var(--body-line);
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgb(140 140 255 / 30%);
 }
 
 button {

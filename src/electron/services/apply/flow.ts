@@ -1,5 +1,5 @@
 import { BrowserContext, Locator, Page } from "playwright"
-import { fillPage, FillReport } from "./fillPage.js"
+import { fillPage, FillContext, FillReport } from "./fillPage.js"
 
 /**
  * Getting from a job listing to its application form: pressing Apply, and for
@@ -10,8 +10,10 @@ import { fillPage, FillReport } from "./fillPage.js"
  * scrambled ones, and an accessible name is the same in both. Playwright's
  * locators also see into the shadow roots LinkedIn puts the popup in.
  *
- * The only buttons pressed inside the popup are the two in STEP_BUTTONS. Submit
- * is not among them, so the application is only ever sent by a person.
+ * The only buttons ever pressed to move on are the two in STEP_BUTTONS inside the
+ * popup, and on any other form a button named exactly Next or Continue (see
+ * FORM_NEXT). Submit is in neither list, so the application is only ever sent by
+ * a person.
  */
 
 const STEP_BUTTONS = 'button[aria-label="Continue to next step"], button[aria-label="Review your application"]'
@@ -20,6 +22,14 @@ const SUBMIT_BUTTON = 'button[aria-label="Submit application"]'
 const POPUP = `${STEP_BUTTONS}, ${SUBMIT_BUTTON}`
 /** What LinkedIn marks a rejected step with. */
 const STEP_ERRORS = '.artdeco-inline-feedback--error, [aria-invalid="true"]'
+
+/**
+ * Next-step buttons on a company's own form, matched on their whole name: a
+ * "Submit application" or "Continue with Google" must never qualify. Only
+ * the buttons on the page itself are looked at, not those in embedded frames.
+ */
+const FORM_NEXT = /^(next|next step|continue|save (and|&) continue)$/i
+const PASSWORD_FIELD = 'input[type="password"]'
 
 const EASY_APPLY = /^easy apply\b(?!.*\bfilter\b)/i
 /** "Apply", "Apply on company website" — but not the "Apply current filter" buttons a search page carries. */
@@ -64,35 +74,64 @@ export async function openEasyApply(page: Page, button: Locator): Promise<boolea
   return isEasyApplyOpen(page)
 }
 
-/**
- * Fills the popup's current step, presses Next, and repeats until it reaches the
- * last page or a step it cannot finish. Both are left open for you.
- */
-export async function runEasyApply(page: Page, profile: Profile, resumePath: string | null): Promise<FlowReport> {
-  const total: FlowReport = { filled: [], needsYou: [], skipped: 0 }
+interface StepOptions {
+  /** Limits what is read to the dialog holding this selector. */
+  within?: string
+  /** The button that moves to the next page, when there is one. */
+  next: () => Locator
+  /** A fill already done on the first page, so it is not read twice. */
+  first?: FillReport
+}
 
-  for (let step = 0; step < MAX_STEPS; step++) {
-    const report = await fillPage(page, profile, resumePath, POPUP)
+/**
+ * Fills the current page, presses Next, and repeats until it reaches the last
+ * page or a step it cannot finish. Both are left open for you.
+ */
+async function runSteps(page: Page, ctx: FillContext, options: StepOptions): Promise<FlowReport> {
+  const total: FlowReport = { filled: [], needsYou: [], skipped: 0 }
+  let report = options.first ?? await fillPage(page, ctx, options.within)
+
+  for (let step = 0; ; step++) {
     total.filled.push(...report.filled)
     total.skipped += report.skipped
     total.needsYou = report.needsYou
 
     // Pressing Next with a known blank only earns an error message.
-    if (report.needsYou.length > 0) return { ...total, stoppedAt: 'questions' }
+    if (report.needsYou.length > 0 || step === MAX_STEPS) return { ...total, stoppedAt: 'questions' }
 
-    const next = page.locator(STEP_BUTTONS).first()
+    // Continue on a sign-in page can create an account in your name.
+    if (await page.locator(PASSWORD_FIELD).first().isVisible().catch(() => false)) {
+      return { ...total, needsYou: ['Sign in or create an account'], stoppedAt: 'questions' }
+    }
+
+    const next = options.next()
     if (!(await next.isVisible().catch(() => false))) return { ...total, stoppedAt: 'review' }
 
     await next.click({ timeout: FIND_BUTTON_MS })
+    await page.waitForLoadState('domcontentloaded').catch(() => {})
     await page.waitForTimeout(SETTLE_MS)
 
-    // A step LinkedIn rejected stays put with its errors showing.
+    // A step the site rejected stays put with its errors showing.
     if (await page.locator(STEP_ERRORS).first().isVisible().catch(() => false)) {
       return { ...total, needsYou: ['The highlighted questions'], stoppedAt: 'questions' }
     }
-  }
 
-  return { ...total, stoppedAt: 'questions' }
+    report = await fillPage(page, ctx, options.within)
+  }
+}
+
+/** Steps through the Easy Apply popup. */
+export function runEasyApply(page: Page, ctx: FillContext): Promise<FlowReport> {
+  return runSteps(page, ctx, { within: POPUP, next: () => page.locator(STEP_BUTTONS).first() })
+}
+
+/**
+ * Carries on through a company's own application form from a page already
+ * filled in (`first`): Next/Continue between pages, stopping before anything
+ * that looks like the end.
+ */
+export function runForm(page: Page, ctx: FillContext, first: FillReport): Promise<FlowReport> {
+  return runSteps(page, ctx, { first, next: () => page.getByRole('button', { name: FORM_NEXT }).first() })
 }
 
 /**

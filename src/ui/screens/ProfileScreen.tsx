@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AnswersCard } from '../components/AnswersCard';
 import { Button } from '../components/Button';
 import { IconLock } from '../components/Icons';
 import { Select } from '../components/Select';
@@ -28,9 +29,10 @@ const YES_NO: { value: YesNo; label: string }[] = [
 /**
  * What the Autofill button types into application forms.
  *
- * Plain rules, no AI: a field is filled only when its label or autocomplete
- * hint says what it is. Anything else — essays, demographic questions, boxes
- * that were already filled in — is left alone. Nothing here leaves the device.
+ * Plain rules: a field is filled only when its label or autocomplete hint says
+ * what it is, or when you have saved an answer to that exact question. Anything
+ * else — essays, boxes that were already filled in — is left alone. Nothing
+ * here leaves the device (cover letters, which are opt-in in Settings, aside).
  */
 export function ProfileScreen() {
   const [saved, setSaved] = useState<Profile | null>(null);
@@ -75,8 +77,8 @@ export function ProfileScreen() {
           <p className="t-caption t-muted profile__copy">
             Anything left empty is skipped. Open a job from the Inbox and press Autofill: it opens
             the job, presses Apply (LinkedIn Easy Apply or the company's own site), and fills what
-            it recognises. If it stops on a question it cannot answer, answer it and press Autofill
-            again. It never presses Submit.
+            it recognises, and moves through the steps with Next or Continue. If it stops on a
+            question it cannot answer, answer it and press Autofill again. It never presses Submit.
           </p>
 
           <div className="profile__grid">
@@ -137,6 +139,8 @@ export function ProfileScreen() {
             {!dirty && <span className="t-caption t-muted">Saved</span>}
           </div>
         </section>
+
+        <AnswersCard />
       </div>
     </>
   );

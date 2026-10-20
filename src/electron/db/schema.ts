@@ -172,6 +172,10 @@ export function migrate() {
   // What the posting's wording says about work rights. NULL until classified.
   addColumn('jobs', 'visa', 'TEXT')
   addColumn('jobs', 'visa_evidence', 'TEXT')
+  // How experienced the posting wants you to be. NULL until classified.
+  addColumn('jobs', 'senior', 'INTEGER')
+  addColumn('jobs', 'min_years', 'INTEGER')
+  addColumn('jobs', 'experience_evidence', 'TEXT')
 
   db.exec(CREATE_RESUME_TABLE)
   db.exec(CREATE_KEYWORDS_TABLE)

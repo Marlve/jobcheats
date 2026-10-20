@@ -106,6 +106,32 @@ export function writeStoredProfile(profile: Profile): void {
   writeSetting(PROFILE_KEY, JSON.stringify(profile))
 }
 
+// ---------- saved answers ----------
+
+const ANSWERS_KEY = 'autofill.answers'
+
+/** Unvalidated, for the same reason as the schedule above. */
+export function readStoredAnswers(): unknown {
+  return readJson(ANSWERS_KEY)
+}
+
+export function writeStoredAnswers(answers: SavedAnswer[]): void {
+  writeSetting(ANSWERS_KEY, JSON.stringify(answers))
+}
+
+// ---------- cover letters ----------
+
+const COVER_LETTER_KEY = 'autofill.coverLetter'
+
+/** Off unless turned on: writing one sends the résumé text and the job to Claude. */
+export function isCoverLetterEnabled(): boolean {
+  return readSetting(COVER_LETTER_KEY) === '1'
+}
+
+export function setCoverLetterEnabled(enabled: boolean): void {
+  writeSetting(COVER_LETTER_KEY, enabled ? '1' : '0')
+}
+
 // ---------- search history ----------
 
 const SEARCH_HISTORY_KEY = 'search.history'

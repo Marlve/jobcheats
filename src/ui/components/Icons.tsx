@@ -84,6 +84,10 @@ export const IconChevron = (p: IconProps) => (
   <Svg {...p}><path d="m7 10 5 5 5-5" /></Svg>
 );
 
+export const IconSidebar = (p: IconProps) => (
+  <Svg {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></Svg>
+);
+
 export const IconBookmark = (p: IconProps) => (
   <Svg {...p}><path d="M6 4.5h12v16l-6-4.5-6 4.5z" /></Svg>
 );

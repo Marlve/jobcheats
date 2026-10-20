@@ -67,20 +67,21 @@
 
 /* Solid danger — reserved for the button that actually deletes. */
 .btn--danger-solid {
-  background: var(--status-danger);
+  background: var(--danger-solid);
   color: #ffffff;
 }
 .btn--danger-solid:hover:not(:disabled) {
-  background: #832525;
+  background: var(--danger-solid-hover);
 }
 
 /* ---------- card ---------- */
 
 .card {
   background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   padding: 20px;
+  box-shadow: var(--edge-highlight), var(--shadow-card);
 }
 
 .card--flush {
@@ -139,7 +140,7 @@
   border-color: var(--status-warning-border);
 }
 .chip--manual .chip__count {
-  background: rgb(20 19 22 / 10%);
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
   color: var(--status-warning);
 }
 
@@ -250,7 +251,7 @@
 }
 
 /* Below it — neutral. Text is --text-secondary, not --text-muted, which only
-   reaches 2.85:1 on white. */
+   reaches 2.85:1 on light surfaces. */
 .score--marginal {
   background: color-mix(in srgb, var(--text-primary) 8%, transparent);
   border-color: var(--border-strong);
@@ -450,7 +451,7 @@
 .segmented button[aria-pressed='true'] {
   background: var(--bg-surface);
   color: var(--text-primary);
-  box-shadow: 0 1px 2px rgb(20 19 22 / 8%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
 }
 
 /* ---------- stepper ---------- */
@@ -591,7 +592,7 @@
   font-weight: 400;
   text-align: left;
   white-space: normal;
-  box-shadow: 0 6px 20px rgb(20 19 22 / 18%);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 45%);
   /* The bubble sits over its own anchor; letting it take the pointer would make
      the anchor flicker between hovered and not. */
   pointer-events: none;
@@ -673,7 +674,7 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--border-default);
   background: var(--bg-elevated);
-  box-shadow: 0 10px 32px rgb(20 19 22 / 14%), 0 2px 6px rgb(20 19 22 / 6%);
+  box-shadow: 0 10px 32px rgb(0 0 0 / 45%), 0 2px 6px rgb(0 0 0 / 25%);
 }
 
 .select-list--placed {
@@ -743,7 +744,7 @@
 }
 
 .chip--manual .chip__dot {
-  background: rgb(20 19 22 / 12%);
+  background: color-mix(in srgb, var(--text-primary) 12%, transparent);
 }
 
 .chip--manual .chip__dot--on {
@@ -811,7 +812,7 @@
   height: 18px;
   border-radius: 50%;
   background: var(--bg-surface);
-  box-shadow: 0 1px 2px rgb(20 19 22 / 20%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 40%);
   transition: transform 120ms ease;
 }
 

@@ -166,7 +166,7 @@
   flex-shrink: 0;
   border-radius: var(--radius-pill);
   border: 1.5px solid var(--border-strong);
-  color: #ffffff;
+  color: var(--score-strong-on);
 }
 
 .stage--done .stage__dot {
@@ -353,7 +353,7 @@
 
 .replace__item--keep .replace__icon {
   background: var(--score-strong);
-  color: #ffffff;
+  color: var(--score-strong-on);
 }
 
 .replace__actions {

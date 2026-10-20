@@ -5,7 +5,9 @@
   display: flex;
   height: 100vh;
   overflow: hidden;
-  background: var(--bg-canvas);
+  background:
+    radial-gradient(1000px 520px at 85% -6%, var(--glow), transparent 70%),
+    var(--bg-canvas);
 }
 
 /* ---------- window chrome ---------- */
@@ -54,12 +56,12 @@
 }
 
 .window-controls__btn--close:hover {
-  background: var(--status-danger);
+  background: var(--danger-solid);
   color: #ffffff;
 }
 
 .window-controls__btn--close:active {
-  background: #832525;
+  background: var(--danger-solid-hover);
 }
 
 /* Flush against the window edge, so an outset ring would be clipped. */
@@ -78,8 +80,11 @@
   /* Top padding clears the title bar strip, putting the brand on the same line
      as the screen title next to it. */
   padding: calc(var(--titlebar-h) + 4px) 16px 20px;
-  border-right: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
+  border-right: 1px solid var(--border-default);
+  background: linear-gradient(180deg, var(--bg-elevated) -40%, var(--bg-surface) 40%);
+  /* Clips the labels while they shrink away, so they never spill past the edge. */
+  overflow: hidden;
+  transition: width var(--rail-duration) var(--rail-ease), padding var(--rail-duration) var(--rail-ease);
   -webkit-app-region: drag;
 }
 
@@ -87,6 +92,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  transition: gap var(--rail-duration) var(--rail-ease);
   padding: 4px 8px 0;
 }
 
@@ -125,7 +131,14 @@
   color: var(--text-secondary);
   font-size: var(--body-size);
   text-align: left;
+  position: relative;
+  transition: gap var(--rail-duration) var(--rail-ease), padding var(--rail-duration) var(--rail-ease);
   -webkit-app-region: no-drag;
+}
+
+/* Sits at the foot of the sidebar, under the nav. */
+.sidebar__collapse {
+  margin-top: auto;
 }
 
 /* The items sit 2px apart, so the global 2px-outset focus ring would overhang
@@ -141,27 +154,31 @@
 }
 
 .sidebar__link--active {
-  background: var(--bg-inset);
+  background: var(--bg-subtle);
   color: var(--text-primary);
   font-weight: 500;
 }
 
-.sidebar__privacy {
-  margin-top: auto;
-  padding: 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-inset);
+/* Marks where you are by shape, not just by a slightly lighter fill. */
+.sidebar__link--active::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent-base);
 }
 
-.sidebar__privacy-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  font-size: var(--label-size);
-  font-weight: 600;
-  color: var(--text-secondary);
+/* Labels shrink to nothing rather than switching off, so the width, the gaps and
+   the fade can all run together. The fade out is quick and the fade in waits for
+   the sidebar to open, so text is never squeezed while it is readable. */
+.sidebar__label {
+  max-width: 120px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width var(--rail-duration) var(--rail-ease), opacity 160ms ease 80ms;
 }
 
 /* ---------- screen ---------- */
@@ -228,40 +245,33 @@
   background: var(--bg-inset);
 }
 
-/* ---------- narrow windows ---------- */
+/* ---------- icon rail ---------- */
 
-/* Collapse the sidebar to an icon rail. Labels are hidden rather than removed,
-   so the buttons keep their accessible names via aria-label. */
-@media (max-width: 840px) {
-  .sidebar {
-    padding: calc(var(--titlebar-h) + 4px) 8px 20px;
-    align-items: center;
-  }
+/* The sidebar as an icon rail: collapsed by hand, or forced by a narrow window
+   (App decides, so the two share these rules). Labels are hidden rather than
+   removed, so the buttons keep their accessible names via aria-label. */
+.app--rail {
+  --sidebar-width: 60px;
+}
 
-  .sidebar__label {
-    display: none;
-  }
+.app--rail .sidebar {
+  padding: calc(var(--titlebar-h) + 4px) 8px 20px;
+}
 
-  .sidebar__brand {
-    padding: 4px 0 0;
-    justify-content: center;
-  }
+.app--rail .sidebar__label {
+  max-width: 0;
+  opacity: 0;
+  transition: max-width var(--rail-duration) var(--rail-ease), opacity 100ms ease;
+}
 
-  .sidebar__link {
-    justify-content: center;
-    padding: 9px 0;
-  }
+.app--rail .sidebar__brand,
+.app--rail .sidebar__link {
+  gap: 0;
+}
 
-  .sidebar__privacy {
-    padding: 10px 0;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-  }
-
-  .sidebar__privacy-title {
-    margin-bottom: 0;
-  }
+/* Centres the 17px icon in the 44px of room the rail leaves. */
+.app--rail .sidebar__link {
+  padding: 9px 13.5px;
 }
 
 /* ---------- update notice ---------- */
@@ -282,7 +292,8 @@
   padding: 12px var(--gutter);
   border-top: 1px solid var(--border-default);
   background: var(--bg-surface);
-  box-shadow: 0 -2px 12px rgb(20 19 22 / 6%);
+  box-shadow: 0 -2px 12px rgb(0 0 0 / 30%);
+  transition: left var(--rail-duration) var(--rail-ease);
 }
 
 /* The body scrolls under the bar, so its last card would sit behind it at the
@@ -328,4 +339,10 @@
 .update-banner__close:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app {
+    --rail-duration: 0ms;
+  }
 }

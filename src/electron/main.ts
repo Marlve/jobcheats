@@ -14,6 +14,7 @@ import { progressReporter } from './ipc/website.js';
 import { websiteService } from './services/websiteService.js';
 import { reconcileMatches } from './services/matchService.js';
 import { reconcileVisa } from './services/visaService.js';
+import { reconcileExperience } from './services/experienceService.js';
 import { checkForUpdatesOnLaunch } from './services/updateService.js';
 import { runScheduledScan, syncScheduleTask } from './services/scheduleService.js';
 import { closeDb, pruneOldJobs } from './db/db.js';
@@ -53,7 +54,7 @@ app.on("ready", () => {
     titleBarStyle: 'hidden',
     // --bg-canvas, so the frame before first paint is the app's own colour
     // rather than white.
-    backgroundColor: '#fafafa',
+    backgroundColor: '#131316',
     webPreferences: {
       preload: getPreloadPath(),
       contextIsolation: true,
@@ -136,6 +137,7 @@ app.on("ready", () => {
   pruneOldJobs()
   reconcileMatches()
   reconcileVisa()
+  reconcileExperience()
 
   if (scanOnly) {
     // Quits only if nobody opened the window while it ran; if they did, this

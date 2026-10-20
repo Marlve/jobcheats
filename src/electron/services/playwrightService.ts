@@ -1,4 +1,4 @@
- import { BrowserContext, chromium, Page } from "playwright"
+import { BrowserContext, chromium, Page } from "playwright"
 import path from 'path'
 import { app, BrowserWindow } from "electron"
 
@@ -118,12 +118,12 @@ async function launchWithInstalledBrowser(visible: boolean): Promise<BrowserCont
   const options = visible
     ? { viewport: null, headless: false }
     : {
-        viewport: { width: 1440, height: 900 },
-        headless: false,
-        // Parked from the moment it opens. Moving it after launch would show the
-        // window on screen for a frame or two at the start of every scan.
-        args: [`--window-position=${PARKED_BOUNDS.left},${PARKED_BOUNDS.top}`],
-      }
+      viewport: { width: 1440, height: 900 },
+      headless: false,
+      // Parked from the moment it opens. Moving it after launch would show the
+      // window on screen for a frame or two at the start of every scan.
+      args: [`--window-position=${PARKED_BOUNDS.left},${PARKED_BOUNDS.top}`],
+    }
 
   for (const channel of BROWSER_CHANNELS) {
     try {
@@ -203,9 +203,9 @@ export const playwrightService = {
 
     yieldForeground()
 
-    await page.bringToFront().catch(() => {})
+    await page.bringToFront().catch(() => { })
     // Belt and braces: bringToFront activates the tab, which does not always
     // carry the OS window with it.
-    await page.evaluate(() => window.focus()).catch(() => {})
+    await page.evaluate(() => window.focus()).catch(() => { })
   },
 }
