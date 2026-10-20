@@ -113,6 +113,7 @@ export function isCoverLetterField(field: FormField): boolean {
 
 const RESUME_WORD = /\b(r[eé]sum[eé]|cv|curriculum vitae)\b/
 const UPLOAD_OPTION = /^(upload|attach)\b/i
+const FILE_NAME = /\.(pdf|docx?|rtf|txt|odt)$/i
 
 /**
  * A choice between résumés already on the site and uploading another one. Taking
@@ -123,10 +124,12 @@ export function isResumeChoice(field: FormField): boolean {
 
   const hasUpload = field.options.some(option => UPLOAD_OPTION.test(option.trim()))
   const hasSaved = field.options.some(option => !UPLOAD_OPTION.test(option.trim()))
+  // Seek can list only the saved file, with the upload choice somewhere else on the page.
+  const listsFiles = field.options.some(option => FILE_NAME.test(option.trim()))
   const label = normalise(field.label)
   const named = RESUME_WORD.test(label) || field.options.some(option => RESUME_WORD.test(normalise(option)))
 
-  return hasUpload && hasSaved && (named || label === '')
+  return hasSaved && (hasUpload || listsFiles) && (named || label === '')
 }
 
 /** Whether the page already has a saved résumé in use, or one this fill will pick — so no file should be attached. */
