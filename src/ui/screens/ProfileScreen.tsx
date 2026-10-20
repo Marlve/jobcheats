@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { AnswersCard } from '../components/AnswersCard';
 import { Button } from '../components/Button';
 import { IconLock } from '../components/Icons';
 import { Select } from '../components/Select';
@@ -139,8 +138,6 @@ export function ProfileScreen() {
             {!dirty && <span className="t-caption t-muted">Saved</span>}
           </div>
         </section>
-
-        <AnswersCard />
       </div>
     </>
   );

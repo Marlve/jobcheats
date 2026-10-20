@@ -7,6 +7,7 @@ import { InboxScreen } from './screens/InboxScreen';
 import { ScanScreen } from './screens/ScanScreen';
 import { PipelineScreen } from './screens/PipelineScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { AnswersScreen } from './screens/AnswersScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import './App.css';
 
@@ -93,6 +94,7 @@ function App() {
         {route === 'pipeline' && <PipelineScreen />}
         {route === 'scan' && <ScanScreen />}
         {route === 'profile' && <ProfileScreen />}
+        {route === 'answers' && <AnswersScreen />}
         {route === 'settings' && <SettingsScreen />}
       </main>
 

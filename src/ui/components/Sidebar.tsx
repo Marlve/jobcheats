@@ -2,6 +2,7 @@ import {
   IconArchive,
   IconInbox,
   IconInsights,
+  IconList,
   IconPipeline,
   IconScan,
   IconSettings,
@@ -9,7 +10,7 @@ import {
   IconUser,
 } from './Icons';
 
-export type Route = 'insights' | 'inbox' | 'archive' | 'pipeline' | 'scan' | 'profile' | 'settings' | 'resume';
+export type Route = 'insights' | 'inbox' | 'archive' | 'pipeline' | 'scan' | 'profile' | 'answers' | 'settings' | 'resume';
 
 const NAV: { route: Route; label: string; Icon: (p: { size?: number }) => React.JSX.Element }[] = [
   { route: 'insights', label: 'Insights', Icon: IconInsights },
@@ -18,6 +19,7 @@ const NAV: { route: Route; label: string; Icon: (p: { size?: number }) => React.
   { route: 'pipeline', label: 'Pipeline', Icon: IconPipeline },
   { route: 'scan', label: 'Daily scan', Icon: IconScan },
   { route: 'profile', label: 'Profile', Icon: IconUser },
+  { route: 'answers', label: 'Saved answers', Icon: IconList },
   { route: 'settings', label: 'Settings', Icon: IconSettings },
 ];
 
