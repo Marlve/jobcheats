@@ -4,6 +4,12 @@ const LABEL: Record<Exclude<VisaKind, 'none'>, string> = {
   mixed: 'Check visa wording',
 };
 
+const TONE: Record<Exclude<VisaKind, 'none'>, 'good' | 'bad' | 'warn'> = {
+  sponsors: 'good',
+  restricted: 'bad',
+  mixed: 'warn',
+};
+
 /**
  * What a posting's wording says about work rights, with the phrases it rests on
  * in the tooltip. Nothing is shown for a posting that says nothing — silence is
@@ -14,7 +20,7 @@ export function VisaChip({ kind, evidence }: { kind: VisaKind; evidence: string[
 
   return (
     <span
-      className={`visa-chip visa-chip--${kind}`}
+      className={`tag tag--${TONE[kind]}`}
       title={evidence.length ? `The posting says: ${evidence.map((phrase) => `"${phrase}"`).join(', ')}` : undefined}
     >
       {LABEL[kind]}

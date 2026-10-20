@@ -38,6 +38,9 @@
 }
 
 .job {
+  /* Where the title starts: the score badge and its gap, plus the tick box when there is one.
+     Everything under the title lines up with it. */
+  --indent: 64px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -46,12 +49,13 @@
 }
 
 .job:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-elevated);
+  border-color: var(--accent-border);
+  background: var(--sheen), var(--bg-elevated);
+  box-shadow: var(--edge-highlight), var(--shadow-hover);
 }
 
-.job--open {
-  border-color: var(--border-strong);
+.job--pickable {
+  --indent: 96px;
 }
 
 .job__head {
@@ -60,79 +64,46 @@
   gap: 14px;
 }
 
-/* The whole title block is the expand target, so it is a button reset rather
-   than a nested control. */
 .job__main {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 0;
-  border: none;
-  background: none;
-  text-align: left;
-  color: inherit;
 }
 
 .job__title {
   font-weight: 600;
 }
 
-.job__side {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.job__chevron {
-  display: inline-flex;
-  color: var(--text-muted);
-  transition: transform 150ms ease;
-}
-
-.job__chevron--open {
-  transform: rotate(180deg);
-}
-
 .job__facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
-  padding-left: 66px;
+  padding-left: var(--indent);
 }
 
-.job__source {
-  color: var(--text-secondary);
+/* Plain text, set apart by a dot; the tags below carry the colour. */
+.job__facts > span + span::before {
+  content: '·';
+  margin: 0 8px;
 }
 
-.job__keywords {
+.job__tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding-left: 66px;
+  padding-left: var(--indent);
 }
 
-.job__body {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 14px 0 2px 66px;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.job__about {
-  white-space: pre-wrap;
-  max-height: 220px;
-  overflow-y: auto;
+.job__tags:empty {
+  display: none;
 }
 
 .job__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding-left: 66px;
+  padding-left: var(--indent);
 }
 
 .job__open {
@@ -142,11 +113,9 @@
 
 /* Narrow windows: drop the score-badge indent so rows keep their width. */
 @media (max-width: 860px) {
-  .job__facts,
-  .job__keywords,
-  .job__body,
-  .job__actions {
-    padding-left: 0;
+  .job,
+  .job--pickable {
+    --indent: 0px;
   }
 
   .job__open {
@@ -157,7 +126,7 @@
 /* ---------- autofill result ---------- */
 
 .job__autofill {
-  margin: 12px 0 0 66px;
+  margin: 12px 0 0 var(--indent);
   padding: 12px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
@@ -172,28 +141,61 @@
   color: var(--status-danger);
 }
 
-/* ---------- visa wording and experience ---------- */
+/* ---------- tags ---------- */
 
-.visa-chip,
-.exp-chip {
-  padding: 1px 8px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border-subtle);
+/* One small label for everything said about a job: the visa wording, the
+   experience asked for, and the keywords that matched. Quiet by default; only
+   the visa wording takes a colour, because that is what can rule a job out. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
   font-size: var(--caption-size);
-  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.tag[title] {
   cursor: help;
 }
 
-.visa-chip--sponsors {
-  border-color: var(--status-positive-border);
+.tag--more {
+  background: none;
+  padding: 0 2px;
+  color: var(--text-muted);
 }
 
-.visa-chip--restricted {
-  border-color: var(--status-danger-border);
+.tag--good,
+.tag--bad,
+.tag--warn {
+  font-weight: 500;
+}
+
+.tag--good::before,
+.tag--bad::before,
+.tag--warn::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.tag--good {
+  background: color-mix(in srgb, var(--score-strong) 14%, transparent);
+  color: var(--score-strong);
+}
+
+.tag--bad {
   background: var(--status-danger-surface);
+  color: var(--status-danger);
 }
 
-.visa-chip--mixed {
-  border-color: var(--status-warning-border);
+.tag--warn {
   background: var(--status-warning-surface);
+  color: var(--status-warning);
 }
