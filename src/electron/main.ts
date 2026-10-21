@@ -54,7 +54,7 @@ app.on("ready", () => {
     titleBarStyle: 'hidden',
     // --bg-canvas, so the frame before first paint is the app's own colour
     // rather than white.
-    backgroundColor: '#131316',
+    backgroundColor: '#121212',
     webPreferences: {
       preload: getPreloadPath(),
       contextIsolation: true,
