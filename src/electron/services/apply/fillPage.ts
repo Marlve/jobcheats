@@ -1,6 +1,6 @@
 import { Frame, Locator, Page } from "playwright"
 import type { AnswerBank } from "./answers.js"
-import { decide, displayLabel, FormField, isCoverLetterField, isSavableQuestion } from "./matcher.js"
+import { decide, displayLabel, FormField, isCoverLetterField, isSavableQuestion, usesSavedResume } from "./matcher.js"
 
 /**
  * Reads the form in front of you and fills what the matcher is sure about.
@@ -159,6 +159,27 @@ function readFields(frame: Frame, within: string | undefined): Promise<FormField
       })
     })
 
+    /** The question a group of radios answers: its legend, else its ARIA name, else the nearest heading above it. */
+    const groupLabel = (key: unknown, radios: HTMLInputElement[]) => {
+      const legend = key instanceof Element ? key.querySelector('legend') : null
+      if (legend && textOf(legend)) return textOf(legend)
+
+      const group = radios[0].closest('[role=radiogroup], [role=group]')
+      const root = radios[0].getRootNode() as Document | ShadowRoot
+      const named = clean(group?.getAttribute('aria-label'))
+        || clean((group?.getAttribute('aria-labelledby') ?? '').split(/\s+/).map(id => root.getElementById(id)?.textContent ?? '').join(' '))
+      if (named) return named
+
+      // Through wrappers that hold this group and little else, so a heading
+      // for the whole page is not taken for this question's.
+      let node = radios[0].parentElement
+      for (let depth = 0; depth < 5 && node && controlCount(node) <= radios.length + 2; depth++, node = node.parentElement) {
+        const heading = node.querySelector('legend, h1, h2, h3, h4, h5, h6, [role=heading]')
+        if (heading && textOf(heading)) return textOf(heading)
+      }
+      return ''
+    }
+
     // A group of radios is one question. Each button is tagged "<field id>.<option index>".
     radioGroups.forEach((radios, key) => {
       const id = String(fields.length)
@@ -166,7 +187,6 @@ function readFields(frame: Frame, within: string | undefined): Promise<FormField
         const label = radio.labels?.[0]
         return (label && textOf(label)) || clean(radio.getAttribute('aria-label') || radio.value)
       }
-      const question = key instanceof Element ? key.querySelector('legend') : null
       const checked = radios.find(radio => radio.checked)
 
       radios.forEach((radio, index) => radio.setAttribute('data-jc-field', `${id}.${index}`))
@@ -175,7 +195,7 @@ function readFields(frame: Frame, within: string | undefined): Promise<FormField
         id,
         tag: 'radio',
         type: 'radio',
-        label: question ? textOf(question) : '',
+        label: groupLabel(key, radios),
         autocomplete: '',
         required: radios.some(radio => radio.required || radio.getAttribute('aria-required') === 'true'),
         value: checked ? optionLabel(checked) : '',
@@ -230,6 +250,22 @@ export interface FillContext {
   letter?: LetterSource
   /** Present to fill from, learn into and note unanswered questions in the saved answers. */
   answers?: AnswerBank
+  /** Called when the page has a cover-letter question and letters are switched off, so the person can be told. */
+  letterOff?: () => void
+}
+
+/**
+ * Notes the answers typed into the forms of a page, for the saved answers.
+ * Fills nothing and presses nothing.
+ */
+export async function learnTyped(page: Page, answers: AnswerBank, profile: Profile): Promise<void> {
+  for (const frame of page.frames()) {
+    const fields = await readFields(frame, undefined).catch(() => [] as FormField[])
+
+    for (const field of fields) {
+      if (field.value && isSavableQuestion(field, profile)) answers.learn(field.label, field.value, field.options)
+    }
+  }
 }
 
 /** Time for a revealed text box to render after "Write a cover letter" is picked. */
@@ -264,6 +300,7 @@ async function fillOnce(
   for (const frame of page.frames()) {
     // A frame can detach mid-read (an ad, a redirect); losing it is not losing the page.
     const fields = await readFields(frame, within).catch(() => [] as FormField[])
+    const savedResume = usesSavedResume(fields)
 
     for (const field of fields) {
       // An answer already in the form is one you gave: keep it for next time.
@@ -273,8 +310,11 @@ async function fillOnce(
 
       const action = decide(field, profile, {
         writeLetters: letter !== undefined,
+        savedResume,
         savedAnswer: answers && (label => answers.lookup(label)),
       })
+      if (!letter && isCoverLetterField(field)) ctx.letterOff?.()
+
       let target = frame.locator(`[data-jc-field="${field.id}"]`)
       let sent = false
 
@@ -309,7 +349,7 @@ async function fillOnce(
       if (sent && field.tag === 'radio' && isCoverLetterField(field)) revealed = true
 
       if (sent) attempted.push({ field, target })
-      else if (field.value) report.skipped++
+      else if (field.value || (field.type === 'file' && savedResume)) report.skipped++
       else leaveUnfilled(report, field, ctx)
     }
   }

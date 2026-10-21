@@ -105,10 +105,41 @@ export function isResumeField(field: FormField): boolean {
 }
 
 export function isCoverLetterField(field: FormField): boolean {
-  return field.type !== 'file' && COVER_LETTER.test(normalise(field.label))
+  if (field.type === 'file') return false
+  if (COVER_LETTER.test(normalise(field.label))) return true
+  // A group with no heading of its own still says so in its options ("Write a cover letter").
+  return field.tag === 'radio' && field.options.some(option => COVER_LETTER.test(normalise(option)))
+}
+
+const RESUME_WORD = /\b(r[eé]sum[eé]|cv|curriculum vitae)\b/
+const UPLOAD_OPTION = /^(upload|attach)\b/i
+const FILE_NAME = /\.(pdf|docx?|rtf|txt|odt)$/i
+
+/**
+ * A choice between résumés already on the site and uploading another one. Taking
+ * the saved one is the point: uploading adds a new copy to the account each time.
+ */
+export function isResumeChoice(field: FormField): boolean {
+  if (field.tag !== 'radio' || isCoverLetterField(field)) return false
+
+  const hasUpload = field.options.some(option => UPLOAD_OPTION.test(option.trim()))
+  const hasSaved = field.options.some(option => !UPLOAD_OPTION.test(option.trim()))
+  // Seek can list only the saved file, with the upload choice somewhere else on the page.
+  const listsFiles = field.options.some(option => FILE_NAME.test(option.trim()))
+  const label = normalise(field.label)
+  const named = RESUME_WORD.test(label) || field.options.some(option => RESUME_WORD.test(normalise(option)))
+
+  return hasSaved && (hasUpload || listsFiles) && (named || label === '')
+}
+
+/** Whether the page already has a saved résumé in use, or one this fill will pick — so no file should be attached. */
+export function usesSavedResume(fields: FormField[]): boolean {
+  return fields.some(field => isResumeChoice(field) && (!field.value || !UPLOAD_OPTION.test(field.value.trim())))
 }
 
 export interface DecideOptions {
+  /** A saved résumé is in use (see `usesSavedResume`), so the file box is left empty. */
+  savedResume?: boolean
   /** Whether cover letters are switched on: without it the "write a cover letter" choice is not made for you. */
   writeLetters?: boolean
   /** The saved answer to a question, if there is one. */
@@ -128,13 +159,18 @@ function findYesNoRule(field: FormField) {
   return YES_NO_RULES.find(candidate => candidate.label.test(label))
 }
 
+/** Fields whose contents are about getting in, not about the application. */
+const NOT_AN_ANSWER = /username|one-time-code|password|\bcc-/
+
 /**
  * Whether this is a short question a saved answer could settle: not something
  * the profile already has the answer to, and not an essay, upload or consent.
  * These are the fields worth learning from, and worth listing when unanswered.
  */
 export function isSavableQuestion(field: FormField, profile: Profile): boolean {
-  if (field.tag === 'textarea' || field.type === 'file' || isCoverLetterField(field)) return false
+  if (field.tag === 'textarea' || field.type === 'file' || isCoverLetterField(field) || isResumeChoice(field)) return false
+  // A search box or a login field is not a question an employer asked.
+  if (field.type === 'search' || NOT_AN_ANSWER.test(field.autocomplete.toLowerCase())) return false
 
   if (field.tag === 'input') {
     if (!TEXT_INPUT_TYPES.has(field.type)) return false
@@ -153,7 +189,7 @@ export function isSavableQuestion(field: FormField, profile: Profile): boolean {
  */
 export function decide(field: FormField, profile: Profile, options: DecideOptions = {}): FillAction | null {
   if (field.type === 'file') {
-    return isResumeField(field) && !field.value ? { kind: 'file' } : null
+    return isResumeField(field) && !field.value && !options.savedResume ? { kind: 'file' } : null
   }
 
   if (field.tag === 'radio' && options.writeLetters && isCoverLetterField(field)) {
@@ -163,8 +199,14 @@ export function decide(field: FormField, profile: Profile, options: DecideOption
     return write && open ? { kind: 'option', option: write } : null
   }
 
+  if (field.tag === 'radio' && isResumeChoice(field)) {
+    const saved = field.options.find(option => !UPLOAD_OPTION.test(option.trim()))
+    return saved && !field.value ? { kind: 'option', option: saved } : null
+  }
+
   if (field.tag === 'textarea') {
-    return isCoverLetterField(field) && !field.value ? { kind: 'coverLetter' } : null
+    // With letters on, a letter already in the box (Seek keeps your last one) is replaced by this job's.
+    return isCoverLetterField(field) && (options.writeLetters || !field.value) ? { kind: 'coverLetter' } : null
   }
 
   if (field.tag === 'select' || field.tag === 'radio') {

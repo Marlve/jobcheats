@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { ApplyQueue } from './components/ApplyQueue';
+import { useApplyQueue } from './applyQueue';
 import { Sidebar, type Route } from './components/Sidebar';
 import { hasUpdateNotice, UpdateBanner } from './components/UpdateBanner';
 import { WindowControls } from './components/WindowControls';
@@ -7,6 +9,7 @@ import { InboxScreen } from './screens/InboxScreen';
 import { ScanScreen } from './screens/ScanScreen';
 import { PipelineScreen } from './screens/PipelineScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { AnswersScreen } from './screens/AnswersScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import './App.css';
 
@@ -71,13 +74,14 @@ function App() {
   }
 
   const showUpdate = hasUpdateNotice(update);
+  const queueOpen = useApplyQueue() !== null;
 
   // macOS draws its own traffic lights, and a plain browser tab has no window
   // to control — both leave the strip empty.
   const ownsWindowButtons = Boolean(window.electron) && window.electron.platform !== 'darwin';
 
   return (
-    <div className={`app${showUpdate ? ' app--notified' : ''}${rail ? ' app--rail' : ''}`}>
+    <div className={`app${showUpdate ? ' app--notified' : ''}${rail ? ' app--rail' : ''}${queueOpen ? ' app--queue' : ''}`}>
       <Sidebar
         route={route}
         onNavigate={setRoute}
@@ -93,8 +97,11 @@ function App() {
         {route === 'pipeline' && <PipelineScreen />}
         {route === 'scan' && <ScanScreen />}
         {route === 'profile' && <ProfileScreen />}
+        {route === 'answers' && <AnswersScreen />}
         {route === 'settings' && <SettingsScreen />}
       </main>
+
+      <ApplyQueue />
 
       {showUpdate && update && <UpdateBanner status={update} onDismiss={dismissUpdate} />}
 

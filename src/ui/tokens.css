@@ -4,45 +4,51 @@
  * Dark only. The original light design (white surfaces, near-black accent) was
  * glaring on a laptop screen, so the same token names now hold a soft charcoal
  * palette: no pure black or pure white, which keeps contrast comfortable.
- * The greys lean slightly indigo so the surfaces read as layers rather than one
- * flat slab. The accent stays neutral — a soft light grey, bright enough to
- * read as filled against the dark surfaces but not a white block.
+ * The greys are neutral, with no blue or purple cast, so the surfaces read as
+ * layers rather than one
+ * flat slab, and the accent is a soft red that stands out against them: bright enough
+ * to read as filled against the dark surfaces, never a white block.
  */
 
 :root {
   color-scheme: dark;
 
   /* surfaces — darkest to lightest */
-  --bg-canvas: #101015;
-  --bg-surface: #191920;
-  --bg-elevated: #20202a;
-  --bg-inset: #14141a;
-  --bg-subtle: #262631;
-  --bg-hover: #2c2c38;
+  --bg-canvas: #121212;
+  --bg-surface: #1a1a1a;
+  --bg-elevated: #222222;
+  --bg-inset: #161616;
+  --bg-subtle: #2a2a2a;
+  --bg-hover: #303030;
 
   /* borders */
-  --border-subtle: #22222b;
-  --border-default: #2e2e3a;
-  --border-strong: #444453;
+  --border-subtle: #242424;
+  --border-default: #303030;
+  --border-strong: #484848;
 
   /* text */
-  --text-primary: #e4e4ea;
-  --text-secondary: #a8a8b5;
-  --text-muted: #8888a0;
+  --text-primary: #e6e6e6;
+  --text-secondary: #aaaaaa;
+  --text-muted: #8c8c8c;
 
-  /* accent — neutral soft grey, not a hue */
-  --accent-base: #d9d9e2;
-  --accent-hover: #c2c2cd;
-  --accent-dim: #3a3a48;
-  --accent-subtle: #20202a;
-  --accent-border: #444453;
-  --accent-on: #101015;
+  /* accent — soft red. Swapping the hue means changing these six and the
+     two glows below. */
+  --accent-base: #f0605d;
+  --accent-hover: #f77f7c;
+  --accent-dim: #5a2326;
+  --accent-subtle: #2e1618;
+  --accent-border: #8a3a3d;
+  --accent-on: #1c0a0b;
 
-  /* Depth: a faint cool glow at the top of the page, and a hairline of light
-     along the top edge of raised surfaces. */
-  --glow: rgb(120 120 255 / 9%);
-  --edge-highlight: inset 0 1px 0 rgb(255 255 255 / 4%);
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 35%);
+  /* Depth: a cool glow at the top of the page and a fainter one at the bottom,
+     a sheen across the top of raised surfaces with a hairline of light along
+     their edge, and a shadow that lifts them off the page. */
+  --glow: rgb(255 90 90 / 9%);
+  --glow-soft: rgb(255 90 90 / 3%);
+  --sheen: linear-gradient(180deg, rgb(255 255 255 / 3.5%), transparent 55%);
+  --edge-highlight: inset 0 1px 0 rgb(255 255 255 / 6%);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 35%), 0 10px 28px -18px rgb(0 0 0 / 70%);
+  --shadow-hover: 0 12px 32px -16px rgb(255 80 80 / 34%);
 
   /* The one accent. Scores at or above the match threshold are green; anything
      below is neutral, so colour marks "worth your time" rather than encoding a
@@ -97,7 +103,9 @@
   --caption-line: 16px;
   --caption-weight: 400;
 
-  /* shape */
+  /* shape: sm for small items inside a popover or panel, md for controls
+     (buttons, inputs, dropdowns, tiles) and panels inside a card, lg for
+     surfaces (cards, modals, banners). Pills are for tags, status and progress only. */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;

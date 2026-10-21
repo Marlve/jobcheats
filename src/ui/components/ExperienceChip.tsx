@@ -13,7 +13,7 @@ export function ExperienceChip({ senior, minYears, evidence }: {
 
   return (
     <span
-      className="exp-chip"
+      className="tag"
       title={evidence.length ? `The posting says: ${evidence.map((phrase) => `"${phrase}"`).join(', ')}` : undefined}
     >
       {label}

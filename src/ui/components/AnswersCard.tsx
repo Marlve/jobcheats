@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from './Button';
 import { Select } from './Select';
+import { formatDate } from '../format';
 
 /**
  * Form questions Autofill has met, and what to answer each.
@@ -25,7 +26,13 @@ function AnswerRow({
 
   return (
     <li className="answers__row">
-      <p className="t-label answers__question">{entry.question}</p>
+      <div className="answers__question">
+        <p className="t-label">{entry.question}</p>
+        <p className="t-caption t-muted">
+          {entry.answer === '' ? 'Asked by a form' : entry.source === 'typed' ? 'Typed by you' : 'Learned from a form'}
+          {' · '}{formatDate(entry.seenAt)}
+        </p>
+      </div>
 
       <div className="answers__control">
         {entry.options.length > 0
@@ -62,8 +69,12 @@ function AnswerRow({
 export function AnswersCard() {
   const [answers, setAnswers] = useState<SavedAnswer[] | null>(null);
 
+  // Answers are saved from the application window, so look again whenever this one is returned to.
   useEffect(() => {
-    void window.electron.listAnswers().then(setAnswers);
+    const load = () => void window.electron.listAnswers().then(setAnswers);
+    load();
+    window.addEventListener('focus', load);
+    return () => window.removeEventListener('focus', load);
   }, []);
 
   if (!answers) return null;
@@ -89,11 +100,10 @@ export function AnswersCard() {
 
   return (
     <section className="card">
-      <h2 className="t-body scan__title">Saved answers</h2>
       <p className="t-caption t-muted profile__copy">
-        Autofill remembers the questions forms ask. When one stops it, answer it here, or answer it
-        in the form and press Autofill again — it keeps what you entered and fills the same
-        question next time. Only the exact same question gets the answer.
+        Autofill remembers the questions forms ask, and saves what you type into them as you go,
+        so the same question is filled next time. When one stops it, answer it here or in the
+        form. Only the exact same question gets the answer.
       </p>
 
       {waiting.length > 0 && (

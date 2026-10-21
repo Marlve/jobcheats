@@ -1,0 +1,97 @@
+/* Selecting several inbox jobs, and applying to them one by one. */
+
+.bulk {
+  position: sticky;
+  top: 8px;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+}
+
+.bulk__count {
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.bulk__spacer {
+  flex: 1;
+}
+
+/* Docked to the corner of the window, so it is there on every screen. */
+.queue {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 30;
+  width: min(400px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-color: var(--accent-border);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-modal);
+}
+
+.queue .job__autofill {
+  margin-left: 0;
+}
+
+.queue__title {
+  font-weight: 600;
+}
+
+.queue__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* Drawn by hand: the browser's own checkbox has corners nothing else in the app has. */
+.job__pick {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 4px 0 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  cursor: pointer;
+}
+
+.job__pick:hover {
+  border-color: var(--text-muted);
+}
+
+.job__pick:checked {
+  border-color: var(--accent-base);
+  background: var(--accent-base);
+}
+
+.job__pick:checked::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  margin-top: -2px;
+  border: solid var(--accent-on);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.job__pick:focus-visible {
+  outline: 2px solid var(--accent-base);
+  outline-offset: 2px;
+}
+
+/* Room to scroll the last rows clear of the dock. */
+.app--queue .screen__body {
+  padding-bottom: 260px;
+}

@@ -33,7 +33,7 @@ export function AutofillNote({ result }: { result: AutofillResult }) {
         <p className="t-muted">Stopped on the last page. Check your answers, then press Submit yourself.</p>
       )}
       {stoppedAt === 'questions' && (
-        <p className="t-muted">Stopped on a step it cannot finish. Answer it in the window (or under Saved answers on the Profile tab), then press Autofill again.</p>
+        <p className="t-muted">Stopped on a step it cannot finish. Answer it in the window (or on the Saved answers tab), then press Autofill again.</p>
       )}
       {!stoppedAt && <p className="t-muted">Nothing was submitted. Check the form, then press Submit yourself.</p>}
     </div>

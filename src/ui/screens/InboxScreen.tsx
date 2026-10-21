@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AutofillNote } from '../components/AutofillNote';
+import { BulkBar } from '../components/BulkBar';
 import { Button } from '../components/Button';
 import { ScoreBadge } from '../components/ScoreBadge';
 import { SOURCE_LABEL, StatusPill } from '../components/StatusPill';
 import {
   IconBookmark,
   IconCheck,
-  IconChevron,
   IconCross,
   IconDocument,
   IconExternal,
@@ -17,6 +17,7 @@ import { Tooltip } from '../components/Tooltip';
 import { ExperienceChip } from '../components/ExperienceChip';
 import { VisaChip } from '../components/VisaChip';
 import { daysUntil, formatDate } from '../format';
+import { applyQueue, useApplyQueue } from '../applyQueue';
 import './inbox.css';
 
 /**
@@ -91,6 +92,9 @@ function loadExperience(): ExperienceFilter {
   }
 }
 
+/** Matched keywords shown on a card; the rest are counted. */
+const MAX_KEYWORDS = 6;
+
 const MIN_SCORES = [
   { value: 0, label: 'Any score' },
   { value: 40, label: '40+' },
@@ -110,7 +114,9 @@ export function InboxScreen({ view }: { view: JobListView }) {
   const [experience, setExperience] = useState<ExperienceFilter>(loadExperience);
   const [stage, setStage] = useState<JobStatus | 'all'>('all');
   const [sortBy, setSortBy] = useState<NonNullable<ListJobsOptions['sortBy']>>('score');
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const lastPicked = useRef<number | null>(null);
+  const queue = useApplyQueue();
 
   // Debounced so typing in the search box does not fire a query per keystroke.
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -166,6 +172,43 @@ export function InboxScreen({ view }: { view: JobListView }) {
       ? current.map((row) => (row.id === job.id ? { ...row, status: next } : row))
       : current.filter((row) => row.id !== job.id));
 
+    setStats(await window.electron.getDbStats());
+  }
+
+  // Jobs the queue marks applied leave the list, as they do when marked by hand.
+  const appliedCount = queue?.applied.length ?? 0;
+  useEffect(() => {
+    if (appliedCount === 0 || view !== 'inbox') return;
+    const done = new Set(queue?.applied);
+    setJobs((current) => current.filter((row) => !done.has(row.id)));
+    void window.electron.getDbStats().then(setStats);
+  }, [appliedCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only jobs on screen count: a ticked job that a filter then hides is never acted on.
+  const selected = useMemo(() => jobs.filter((job) => picked.has(job.id)), [jobs, picked]);
+  const appliable = selected.filter((job) => job.url);
+
+  /** Shift-click ticks (or unticks) everything between this row and the last one clicked. */
+  function pick(job: JobRow, range: boolean) {
+    const on = !picked.has(job.id);
+    const from = jobs.findIndex((row) => row.id === lastPicked.current);
+    const to = jobs.findIndex((row) => row.id === job.id);
+    const rows = range && from !== -1 ? jobs.slice(Math.min(from, to), Math.max(from, to) + 1) : [job];
+
+    setPicked((current) => {
+      const next = new Set(current);
+      rows.forEach((row) => (on ? next.add(row.id) : next.delete(row.id)));
+      return next;
+    });
+    lastPicked.current = job.id;
+  }
+
+  async function rejectSelected() {
+    const ids = new Set(selected.map((job) => job.id));
+    await Promise.all([...ids].map((id) => window.electron.updateJobStatus(id, 'rejected')));
+
+    setJobs((current) => current.filter((row) => !ids.has(row.id)));
+    setPicked(new Set());
     setStats(await window.electron.getDbStats());
   }
 
@@ -271,6 +314,18 @@ export function InboxScreen({ view }: { view: JobListView }) {
           </div>
         </div>
 
+        {view === 'inbox' && !queue && jobs.length > 0 && (
+          <BulkBar
+            selected={selected.length}
+            shown={jobs.length}
+            appliable={appliable.length}
+            onSelectAll={() => setPicked(new Set(jobs.map((job) => job.id)))}
+            onClear={() => setPicked(new Set())}
+            onReject={() => void rejectSelected()}
+            onApply={() => { applyQueue.start(appliable); setPicked(new Set()); }}
+          />
+        )}
+
         {/* Retention is destructive and silent, so the inbox says so up front. */}
         {view === 'inbox' && expiresIn !== null && jobs.length > 0 && (
           <p className="t-caption t-muted retention-note">
@@ -301,9 +356,9 @@ export function InboxScreen({ view }: { view: JobListView }) {
               <JobCard
                 key={job.id}
                 job={job}
-                open={expanded === job.id}
-                onToggle={() => setExpanded(expanded === job.id ? null : job.id)}
                 onStatus={setStatus}
+                ticked={view === 'inbox' ? picked.has(job.id) : undefined}
+                onPick={pick}
               />
             ))}
           </ul>
@@ -315,17 +370,16 @@ export function InboxScreen({ view }: { view: JobListView }) {
 
 function JobCard({
   job,
-  open,
-  onToggle,
   onStatus,
+  ticked,
+  onPick,
 }: {
   job: JobRow;
-  open: boolean;
-  onToggle: () => void;
   onStatus: (job: JobRow, status: JobStatus) => void;
+  /** Whether the row is ticked; undefined where rows cannot be ticked (the archive). */
+  ticked?: boolean;
+  onPick: (job: JobRow, range: boolean) => void;
 }) {
-  const [notes, setNotes] = useState(job.notes ?? '');
-  const saveTimer = useRef<number | null>(null);
   const [filling, setFilling] = useState(false);
   const [autofill, setAutofill] = useState<AutofillResult | null>(null);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
@@ -337,74 +391,50 @@ function JobCard({
     setFilling(false);
   }
 
-  // Notes save on a debounce rather than behind a button — there is no draft
-  // state worth losing, and an explicit save is one more thing to forget.
-  useEffect(() => () => { if (saveTimer.current) window.clearTimeout(saveTimer.current); }, []);
-
-  function onNotes(value: string) {
-    setNotes(value);
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => {
-      void window.electron.setJobNotes(job.id, value);
-    }, 500);
-  }
-
   const meta = [job.company, job.location, job.workType].filter(Boolean).join(' · ');
   const inPipeline = IN_PIPELINE.has(job.status);
 
   return (
-    <li className={`card job${open ? ' job--open' : ''}`}>
+    <li className={`card job${ticked !== undefined ? ' job--pickable' : ''}`}>
       <div className="job__head">
+        {ticked !== undefined && (
+          <input
+            type="checkbox"
+            className="job__pick"
+            checked={ticked}
+            onChange={() => {}}
+            onClick={(event) => onPick(job, event.shiftKey)}
+            aria-label={`Select ${job.title}`}
+          />
+        )}
+
         <ScoreBadge score={job.matchScore} size="lg" />
 
-        <button type="button" className="job__main" onClick={onToggle} aria-expanded={open}>
+        <div className="job__main">
           <p className="t-body job__title">{job.title}</p>
           <p className="t-caption t-secondary">{meta}</p>
-        </button>
-
-        <div className="job__side">
-          <StatusPill status={job.status} />
-          <span className={`job__chevron${open ? ' job__chevron--open' : ''}`} aria-hidden="true">
-            <IconChevron size={16} />
-          </span>
         </div>
+
+        <StatusPill status={job.status} />
       </div>
 
       <div className="job__facts t-caption t-muted">
-        <span className="job__source">{SOURCE_LABEL[job.source] ?? job.source}</span>
-        <VisaChip kind={job.visa} evidence={job.visaEvidence} />
-        <ExperienceChip senior={job.senior} minYears={job.minYears} evidence={job.experienceEvidence} />
+        <span>{SOURCE_LABEL[job.source] ?? job.source}</span>
         {job.salary && <span>{job.salary}</span>}
         {job.postedAt && <span>Posted {formatDate(job.postedAt)}</span>}
         <span>Seen {formatDate(job.firstSeenAt)}</span>
       </div>
 
-      {job.matchedKeywords.length > 0 && (
-        <div className="job__keywords">
-          {job.matchedKeywords.slice(0, open ? undefined : 6).map((keyword) => (
-            <span key={keyword} className="chip chip--sm">{keyword}</span>
-          ))}
-          {!open && job.matchedKeywords.length > 6 && (
-            <span className="chip chip--sm chip--static">+{job.matchedKeywords.length - 6}</span>
-          )}
-        </div>
-      )}
-
-      {open && (
-        <div className="job__body">
-          {job.aboutText && <p className="t-body t-secondary job__about">{job.aboutText}</p>}
-
-          <label className="field">
-            <span className="t-overline">Your notes</span>
-            <textarea
-              className="textarea"
-              value={notes}
-              placeholder="Why this one — or why not."
-              onChange={(event) => onNotes(event.target.value)}
-            />
-          </label>
-        </div>
-      )}
+      <div className="job__tags">
+        <VisaChip kind={job.visa} evidence={job.visaEvidence} />
+        <ExperienceChip senior={job.senior} minYears={job.minYears} evidence={job.experienceEvidence} />
+        {job.matchedKeywords.slice(0, MAX_KEYWORDS).map((keyword) => (
+          <span key={keyword} className="tag">{keyword}</span>
+        ))}
+        {job.matchedKeywords.length > MAX_KEYWORDS && (
+          <span className="tag tag--more">+{job.matchedKeywords.length - MAX_KEYWORDS}</span>
+        )}
+      </div>
 
       <div className="job__actions">
         {/* Once you are past applying, the stage is the one thing to change. */}
