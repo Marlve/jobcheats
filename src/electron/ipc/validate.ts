@@ -5,6 +5,7 @@
 
 import { isScheduleTime } from "../services/scheduleTask.js"
 import { isVersion } from "../services/version.js"
+import { MAX_RESUME_BYTES } from "../config.js"
 
 const JOB_TYPES: JobType[] = ['internship', 'full-time', 'part-time']
 const DATES_POSTED: DatePosted[] = ['24h', 'week', 'month']
@@ -231,9 +232,10 @@ export function validateKeyword(raw: unknown): string {
   return keyword
 }
 
-export function validateWeight(raw: unknown, fallback = 1): number {
+/** A keyword priority: a whole number from 1 (low) to 5 (high), 3 when not given. */
+export function validateWeight(raw: unknown, fallback = 3): number {
   if (raw === undefined || raw === null) return fallback
-  return asNumberInRange(raw, 'weight', 0.1, 10)
+  return Math.round(asNumberInRange(raw, 'weight', 1, 5))
 }
 
 export function validateBoolean(raw: unknown, label: string): boolean {
@@ -283,6 +285,13 @@ export function validateNotes(raw: unknown): string {
  * resumeService, which can report *which* file was rejected and why — rejecting
  * here would throw that detail away before the UI could show it.
  */
+/** LaTeX source typed in the editor. Same size cap as an uploaded file. */
+export function validateTexSource(raw: unknown): string {
+  if (typeof raw !== 'string') throw new ValidationError('LaTeX source must be text')
+  if (Buffer.byteLength(raw, 'utf8') > MAX_RESUME_BYTES) throw new ValidationError('That LaTeX source is too large')
+  return raw
+}
+
 export function validateResumePath(raw: unknown): string {
   if (typeof raw !== 'string' || !raw.trim()) {
     throw new ValidationError('A file path is required')

@@ -11,7 +11,7 @@ import os from "os"
 
 const TIMEOUT_MS = 120_000
 /** Keeps the prompt sane; a posting's useful part is its first few thousand words. */
-const MAX_JOB_CHARS = 6_000
+export const MAX_JOB_CHARS = 6_000
 const MAX_RESUME_CHARS = 8_000
 /** Seek and most forms cap a cover letter well above this. */
 const MAX_LETTER_CHARS = 4_000
@@ -61,8 +61,8 @@ function stop(child: ReturnType<typeof spawn>): void {
 }
 
 /** Runs `claude -p` with the prompt on stdin, so its length never meets a command-line limit. */
-function runClaude(prompt: string, signal?: AbortSignal): Promise<string> {
-  const args = ['-p', '--output-format', 'text', '--tools', '', '--system-prompt', SYSTEM_PROMPT,
+export function runClaude(prompt: string, systemPrompt: string, signal?: AbortSignal): Promise<string> {
+  const args = ['-p', '--output-format', 'text', '--tools', '', '--system-prompt', systemPrompt,
     '--no-session-persistence', '--disable-slash-commands']
 
   return new Promise((resolve, reject) => {
@@ -126,7 +126,7 @@ function tidy(text: string): string {
 
 /** Throws an Error whose message is fit to show the user. */
 export async function writeCoverLetter(job: LetterJob, resume: string, applicant: string, signal?: AbortSignal): Promise<string> {
-  const letter = tidy(await runClaude(buildPrompt(job, resume, applicant), signal))
+  const letter = tidy(await runClaude(buildPrompt(job, resume, applicant), SYSTEM_PROMPT, signal))
   if (!letter) throw new Error('Claude sent back an empty reply.')
   return letter
 }

@@ -3,6 +3,7 @@ import { db, dbPath, withTransaction } from "./schema.js"
 import { ARCHIVED_STATUSES, HIDDEN_STATUS, INBOX_STATUSES, RETENTION_DAYS } from "../config.js"
 import { classifyVisa } from "../services/visa.js"
 import { classifyExperience } from "../services/experience.js"
+import { removeTailoredExcept } from "../services/tailor/tailoredFiles.js"
 
 // ---------- statements ----------
 
@@ -417,6 +418,12 @@ export function clearAllMatches() {
   db.exec('UPDATE jobs SET match_score = NULL, matched_keywords = NULL')
 }
 
+/** A deleted job's tailored resume goes with it; archived jobs keep theirs. */
+function removeTailoredOfDeletedJobs() {
+  const rows = db.prepare('SELECT id FROM jobs').all() as { id: number }[]
+  removeTailoredExcept(new Set(rows.map(row => Number(row.id))))
+}
+
 /**
  * Deletes jobs past the retention window.
  *
@@ -434,6 +441,7 @@ export function pruneOldJobs(retentionDays = RETENTION_DAYS): number {
 
   const deleted = Number(changes)
   if (deleted > 0) console.log(`[db] pruned ${deleted} job(s) older than ${retentionDays} days`)
+  removeTailoredOfDeletedJobs()
 
   return deleted
 }
@@ -450,6 +458,7 @@ export function deleteInboxJobs(): number {
 
   const deleted = Number(changes)
   console.log(`[db] deleted ${deleted} inbox job(s) by request`)
+  removeTailoredOfDeletedJobs()
 
   return deleted
 }

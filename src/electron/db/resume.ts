@@ -1,4 +1,5 @@
 import { db, withTransaction } from "./schema.js"
+import { NORMAL_PRIORITY } from "../services/keywordService.js"
 
 // ---------- resume ----------
 
@@ -68,6 +69,7 @@ type KeywordRecord = {
   id: number
   keyword: string
   weight: number
+  weight_manual: number
   source: string
   enabled: number
 }
@@ -77,6 +79,7 @@ function toKeyword(record: KeywordRecord): ResumeKeyword {
     id: record.id,
     keyword: record.keyword,
     weight: record.weight,
+    weightManual: record.weight_manual === 1,
     source: record.source as KeywordSource,
     enabled: record.enabled === 1,
   }
@@ -85,7 +88,7 @@ function toKeyword(record: KeywordRecord): ResumeKeyword {
 export function listKeywords(): ResumeKeyword[] {
   const rows = db
     .prepare(`
-      SELECT id, keyword, weight, source, enabled FROM resume_keywords
+      SELECT id, keyword, weight, weight_manual, source, enabled FROM resume_keywords
       ORDER BY enabled DESC, weight DESC, keyword ASC
     `)
     .all() as KeywordRecord[]
@@ -100,7 +103,7 @@ export function listEnabledKeywords(): ResumeKeyword[] {
 /** Returns null when the keyword already exists. */
 export function addKeyword(
   keyword: string,
-  weight = 1,
+  weight = NORMAL_PRIORITY,
   source: KeywordSource = 'manual'
 ): ResumeKeyword | null {
   const normalized = keyword.trim().toLowerCase()
@@ -113,7 +116,7 @@ export function addKeyword(
   if (Number(changes) === 0) return null
 
   const row = db
-    .prepare('SELECT id, keyword, weight, source, enabled FROM resume_keywords WHERE keyword = ?')
+    .prepare('SELECT id, keyword, weight, weight_manual, source, enabled FROM resume_keywords WHERE keyword = ?')
     .get(normalized) as KeywordRecord | undefined
 
   return row ? toKeyword(row) : null
@@ -131,20 +134,38 @@ export function setKeywordEnabled(id: number, enabled: boolean): boolean {
   return Number(changes) > 0
 }
 
+/** Sets a keyword's priority. `manual` marks it as set by you, so re-extracting keeps it. */
+export function setKeywordWeight(id: number, weight: number, manual: boolean): boolean {
+  const { changes } = db
+    .prepare('UPDATE resume_keywords SET weight = ?, weight_manual = ? WHERE id = ?')
+    .run(weight, manual ? 1 : 0, id)
+  return Number(changes) > 0
+}
+
 /**
  * Replaces auto-extracted keywords, leaving manual ones alone — a re-upload
- * should not silently discard keywords the user added by hand.
+ * should not silently discard keywords the user added by hand. A priority you
+ * set on an auto keyword is kept too, when the new resume still has that word.
  */
 export function replaceAutoKeywords(keywords: { keyword: string; weight: number }[]) {
   withTransaction(() => {
+    const pinned = new Map(
+      (db
+        .prepare(`SELECT keyword, weight FROM resume_keywords WHERE source = 'auto' AND weight_manual = 1`)
+        .all() as { keyword: string; weight: number }[])
+        .map(row => [row.keyword, row.weight])
+    )
+
     db.exec(`DELETE FROM resume_keywords WHERE source = 'auto'`)
 
     const insert = db.prepare(
-      `INSERT OR IGNORE INTO resume_keywords (keyword, weight, source) VALUES (?, ?, 'auto')`
+      `INSERT OR IGNORE INTO resume_keywords (keyword, weight, weight_manual, source) VALUES (?, ?, ?, 'auto')`
     )
     for (const { keyword, weight } of keywords) {
       const normalized = keyword.trim().toLowerCase()
-      if (normalized) insert.run(normalized, weight)
+      if (!normalized) continue
+      const mine = pinned.get(normalized)
+      insert.run(normalized, mine ?? weight, mine === undefined ? 0 : 1)
     }
   })
 }

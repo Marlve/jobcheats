@@ -70,6 +70,8 @@ export function SettingsScreen() {
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [coverLetters, setCoverLetters] = useState(false);
+  const [tailorChoose, setTailorChoose] = useState(false);
+  const [tailorRewrite, setTailorRewrite] = useState(false);
   const [keywordCount, setKeywordCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -92,12 +94,14 @@ export function SettingsScreen() {
   }, []);
 
   async function refresh() {
-    const [dbStats, meta, keywords, boardList, letters, updateStatus] = await Promise.all([
+    const [dbStats, meta, keywords, boardList, letters, choose, rewrite, updateStatus] = await Promise.all([
       window.electron.getDbStats(),
       window.electron.getResume(),
       window.electron.listKeywords(),
       window.electron.listBoards(),
       window.electron.getCoverLetterEnabled(),
+      window.electron.getTailorChooseEnabled(),
+      window.electron.getTailorRewriteEnabled(),
       // The stored answer, not a fresh request — opening Settings should not
       // spend one of the hourly checks GitHub allows.
       window.electron.getUpdateStatus(),
@@ -107,6 +111,8 @@ export function SettingsScreen() {
     setKeywordCount(keywords.length);
     setBoards(boardList);
     setCoverLetters(letters);
+    setTailorChoose(choose);
+    setTailorRewrite(rewrite);
     setUpdate(updateStatus);
   }
 
@@ -118,6 +124,14 @@ export function SettingsScreen() {
 
   async function toggleCoverLetters(enabled: boolean) {
     setCoverLetters(await window.electron.setCoverLetterEnabled(enabled));
+  }
+
+  async function toggleTailorChoose(enabled: boolean) {
+    setTailorChoose(await window.electron.setTailorChooseEnabled(enabled));
+  }
+
+  async function toggleTailorRewrite(enabled: boolean) {
+    setTailorRewrite(await window.electron.setTailorRewriteEnabled(enabled));
   }
 
   async function toggleAutoCheck(enabled: boolean) {
@@ -273,6 +287,40 @@ export function SettingsScreen() {
                 <IconWarning size={13} />
                 Off by default. Turning it on sends your resume text and the job description to
                 Anthropic, through your own Claude Code login, each time a letter is written.
+              </p>
+            </section>
+
+            {/* ---------- tailored resume ---------- */}
+            <section className="card">
+              <h2 className="t-body settings__title">Tailored resume</h2>
+              <div className="settings__row">
+                <p className="t-body t-secondary settings__copy">
+                  When your resume is a LaTeX file with <code>% tags:</code> lines, Autofill builds
+                  a 2-page PDF for each job from the projects that fit it best, and uploads it
+                  instead of your saved resume. The uploaded file takes your .tex file's name, so
+                  name it the way an employer should see it.
+                </p>
+              </div>
+              <div className="settings__row">
+                <p className="t-body t-secondary settings__copy">Choose projects with Claude</p>
+                <Toggle
+                  checked={tailorChoose}
+                  label="Choose projects with Claude"
+                  onChange={toggleTailorChoose}
+                />
+              </div>
+              <div className="settings__row">
+                <p className="t-body t-secondary settings__copy">Rewrite project bullets with Claude</p>
+                <Toggle
+                  checked={tailorRewrite}
+                  label="Rewrite project bullets with Claude"
+                  onChange={toggleTailorRewrite}
+                />
+              </div>
+              <p className="t-caption t-muted settings__privacy">
+                <IconWarning size={13} />
+                Off by default. Turning either on sends the job description and your project text
+                to Anthropic, through your own Claude Code login, each time you press Autofill.
               </p>
             </section>
 

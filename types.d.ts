@@ -60,10 +60,23 @@ interface Window {
     /** Gives up on an autofill that is stuck: closes its window and stops any cover letter being written. */
     cancelAutofill: () => Promise<void>;
 
+    /** Opens a job's tailored resume PDF in the default viewer. False when it has none. */
+    openTailoredResume: (jobId: number) => Promise<boolean>;
+
     /** Whether Autofill writes cover letters with `claude -p`. Off until turned on. */
     getCoverLetterEnabled: () => Promise<boolean>;
 
     setCoverLetterEnabled: (enabled: boolean) => Promise<boolean>;
+
+    /** Whether Autofill lets Claude choose which projects go in the tailored resume. Off until turned on. */
+    getTailorChooseEnabled: () => Promise<boolean>;
+
+    setTailorChooseEnabled: (enabled: boolean) => Promise<boolean>;
+
+    /** Whether Autofill lets Claude rewrite project bullets in the tailored resume. Off until turned on. */
+    getTailorRewriteEnabled: () => Promise<boolean>;
+
+    setTailorRewriteEnabled: (enabled: boolean) => Promise<boolean>;
 
     /** Form questions with the answer to give each time they come up. Each call returns the whole list. */
     listAnswers: () => Promise<SavedAnswer[]>;
@@ -141,6 +154,13 @@ interface Window {
 
     deleteResume: () => Promise<boolean>;
 
+    /** The stored `.tex` master's source, or null when the resume is not LaTeX. */
+    getResumeTex: () => Promise<string | null>;
+    /** Compiles editor text without storing it. */
+    previewResumeTex: (source: string) => Promise<TexPreviewResult>;
+    /** Saves editor text as the master, with the same checks as an upload. */
+    saveResumeTex: (source: string) => Promise<UploadResumeResult>;
+
     // ---- keywords ----
     listKeywords: () => Promise<ResumeKeyword[]>;
 
@@ -149,6 +169,10 @@ interface Window {
     removeKeyword: (id: number) => Promise<boolean>;
 
     setKeywordEnabled: (id: number, enabled: boolean) => Promise<boolean>;
+    /** Sets your priority, 1 (low) to 5 (high). */
+    setKeywordWeight: (id: number, weight: number) => Promise<boolean>;
+    /** Drops your priority and goes back to the automatic one. */
+    resetKeywordWeight: (id: number) => Promise<boolean>;
 
     resetKeywords: () => Promise<ResumeKeyword[]>;
 
@@ -210,6 +234,15 @@ interface SavedAnswer {
   seenAt: string;
 }
 
+interface TailoredResume {
+  jobId: number;
+  /** Titles of the projects kept, master order; [] when the master PDF was used. */
+  kept: string[];
+  chosenBy: 'tags' | 'claude';
+  rewritten: boolean;
+  error?: string;
+}
+
 type AutofillResult =
   | { ok: true; stage: 'opened' }
   | {
@@ -224,6 +257,8 @@ type AutofillResult =
       stoppedAt?: 'review' | 'questions';
       /** Cover letters are on but one could not be written; why, in a sentence. */
       coverLetterError?: string;
+      /** The resume was tailored from a LaTeX master for this job (or the master was used, with the reason). */
+      tailored?: TailoredResume;
     }
   | { ok: false; error: string }
 
@@ -493,6 +528,8 @@ interface ResumeMeta {
   uploadedAt: string;
   textLength: number;
   bytes: number;
+  /** Set only when the stored resume is a `.tex` master. */
+  projects?: { title: string; tags: string[] }[];
 }
 
 /** A file chosen in the picker but not yet parsed or stored. */
@@ -506,7 +543,10 @@ interface PickedFile {
 interface ResumeKeyword {
   id: number;
   keyword: string;
+  /** Priority from 1 (low) to 5 (high); 3 is normal. Each covered ask in a job is multiplied by it. */
   weight: number;
+  /** You set the priority by hand, so re-reading the resume keeps it. */
+  weightManual: boolean;
   source: KeywordSource;
   enabled: boolean;
 }
@@ -516,6 +556,7 @@ type UploadResumeFailure =
   | 'too-large'
   | 'no-text-layer'
   | 'unreadable'
+  | 'latex'
 
 /** What the rejected file turned out to be — shown alongside the error. */
 interface RejectedFile {
@@ -525,6 +566,10 @@ interface RejectedFile {
   pages?: number;
   characters?: number;
 }
+
+type TexPreviewResult =
+  | { ok: true; pdf: Uint8Array }
+  | { ok: false; error: string }
 
 type UploadResumeResult =
   | { ok: true; resume: ResumeMeta; keywords: ResumeKeyword[] }

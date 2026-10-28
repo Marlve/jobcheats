@@ -12,6 +12,7 @@ import {
   IconWarning,
 } from '../components/Icons';
 import { ReplaceResumeDialog } from '../components/ReplaceResumeDialog';
+import { TexEditor } from '../components/TexEditor';
 import { formatBytes, formatDateTime } from '../format';
 import './resume.css';
 
@@ -57,6 +58,14 @@ const RECOVERY: Record<UploadResumeFailure, { title: string; steps: string[] }> 
       'A text resume is almost always well under 1 MB.',
     ],
   },
+  latex: {
+    title: 'Fix the LaTeX build',
+    steps: [
+      'Compile it in your own editor and fix the first error.',
+      'Check MiKTeX or TeX Live is installed.',
+      'Upload it again.',
+    ],
+  },
   unreadable: {
     title: 'Try a different export',
     steps: [
@@ -71,6 +80,7 @@ const ERROR_HEADLINE: Record<UploadResumeFailure, (file?: RejectedFile) => strin
   'no-text-layer': () => 'This PDF has no text layer',
   'unsupported-type': (file) => `JobCheats can't read .${file?.extension ?? 'this'} files`,
   'too-large': () => 'That file is too large',
+  latex: () => 'LaTeX could not build this file',
   unreadable: () => "That file couldn't be read",
 };
 
@@ -78,6 +88,7 @@ const ERROR_BADGE: Record<UploadResumeFailure, string> = {
   'no-text-layer': 'No text layer',
   'unsupported-type': 'Unsupported type',
   'too-large': 'Too large',
+  latex: 'LaTeX',
   unreadable: 'Unreadable',
 };
 
@@ -91,6 +102,7 @@ export function ResumeScreen() {
   const [expanded, setExpanded] = useState(false);
   const [stage, setStage] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [editing, setEditing] = useState(false);
   const stageTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -185,6 +197,34 @@ export function ResumeScreen() {
     await syncKeywords();
   }
 
+  /**
+   * The list is sorted by priority, so a re-read after a priority change would
+   * move the chip you just clicked. Keep everything where it was until the
+   * screen is next opened.
+   */
+  async function syncKeywordsInPlace() {
+    const [words, read] = await Promise.all([
+      window.electron.listKeywords(),
+      window.electron.getInsights(),
+    ]);
+    setKeywords((current) => {
+      const position = new Map(current.map((keyword, index) => [keyword.id, index]));
+      const at = (keyword: ResumeKeyword) => position.get(keyword.id) ?? current.length;
+      return [...words].sort((a, b) => at(a) - at(b));
+    });
+    setInsights(read);
+  }
+
+  async function setWeight(keyword: ResumeKeyword, weight: number) {
+    await window.electron.setKeywordWeight(keyword.id, weight);
+    await syncKeywordsInPlace();
+  }
+
+  async function resetWeight(keyword: ResumeKeyword) {
+    await window.electron.resetKeywordWeight(keyword.id);
+    await syncKeywordsInPlace();
+  }
+
   async function removeKeyword(keyword: ResumeKeyword) {
     await window.electron.removeKeyword(keyword.id);
     await syncKeywords();
@@ -242,13 +282,19 @@ export function ResumeScreen() {
       return { title: 'Reading your resume', subtitle: 'This usually takes a few seconds' };
     }
     if (phase.kind === 'error') {
-      return { title: 'Upload resume', subtitle: 'PDF, DOCX or TXT · up to 10 MB' };
+      return { title: 'Upload resume', subtitle: 'PDF, DOCX, TXT or TEX · up to 10 MB' };
     }
     if (phase.kind === 'ready') {
       return { title: 'Resume', subtitle: 'One resume, ever — replacing deletes the old file' };
     }
     return { title: 'Welcome to JobCheats', subtitle: 'Three steps to your first daily match list' };
   })();
+
+  const isTex = resume?.filename.toLowerCase().endsWith('.tex') ?? false;
+
+  if (editing && resume && isTex) {
+    return <TexEditor filename={resume.filename} onClose={() => setEditing(false)} onSaved={refresh} />;
+  }
 
   return (
     <>
@@ -260,6 +306,7 @@ export function ResumeScreen() {
 
         {phase.kind === 'ready' && (
           <div className="screen__actions">
+            {isTex && <Button onClick={() => setEditing(true)}>Edit LaTeX</Button>}
             <Button onClick={reExtract}>Re-extract keywords</Button>
             <Button variant="danger" onClick={choose}>Replace resume</Button>
           </div>
@@ -293,7 +340,7 @@ export function ResumeScreen() {
             >
               <span className="dropzone__icon"><IconUpload size={20} /></span>
               <p className="t-title">Drop your resume here</p>
-              <p className="t-body t-secondary">PDF, DOCX or TXT · up to 10 MB</p>
+              <p className="t-body t-secondary">PDF, DOCX, TXT or TEX · up to 10 MB</p>
               <Button variant="primary" onClick={choose}>Choose file</Button>
               <p className="t-caption t-muted">
                 Text-based files only — a scanned PDF has no text to read.
@@ -432,7 +479,7 @@ export function ResumeScreen() {
                 <h2 className="t-body keywords__title">
                   {keywords.filter((k) => k.enabled).length} keywords are driving your matching
                 </h2>
-                <p className="t-caption t-muted">Auto-extracted, ordered by importance</p>
+                <p className="t-caption t-muted">Dots are priority: click one to set it, from 1 (low) to 5 (high)</p>
               </div>
 
               {keywords.length === 0 ? (
@@ -447,6 +494,8 @@ export function ResumeScreen() {
                       keyword={keyword}
                       onToggle={toggleKeyword}
                       onRemove={removeKeyword}
+                      onSetWeight={setWeight}
+                      onResetWeight={resetWeight}
                     />
                   ))}
                   {hiddenCount > 0 && <MoreChip count={hiddenCount} onClick={() => setExpanded(true)} />}
@@ -472,6 +521,36 @@ export function ResumeScreen() {
                 stop it counting towards matches.
               </p>
             </div>
+
+            {isTex && (
+              <div className="card">
+                {resume.projects && resume.projects.length > 0 ? (
+                  <>
+                    <h2 className="t-body keywords__title">Projects in your master</h2>
+                    <ul className="recovery">
+                      {resume.projects.map((project, index) => (
+                        <li key={index}>
+                          <span className="t-body">{project.title}</span>
+                          <span className="keywords">
+                            {project.tags.length === 0 ? (
+                              <span className="t-caption t-muted">No tags</span>
+                            ) : (
+                              project.tags.map((tag) => (
+                                <span key={tag} className="chip chip--static chip--sm">{tag}</span>
+                              ))
+                            )}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <p className="t-body t-muted">
+                    No <code>% tags:</code> lines found, so every application gets this resume unchanged.
+                  </p>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

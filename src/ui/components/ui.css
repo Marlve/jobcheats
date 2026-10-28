@@ -730,8 +730,40 @@
 .chip__weight {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 0;
   padding: 0 2px;
+}
+
+/* Each dot is a button with a larger hit area than the dot it draws. */
+.chip__dot-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 9px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.chip__dot-button:disabled {
+  cursor: default;
+}
+
+.chip__dot-button:hover:not(:disabled) .chip__dot {
+  transform: scale(1.5);
+}
+
+.chip__dot-button:focus-visible {
+  outline: 1px solid var(--accent-border);
+  border-radius: var(--radius-pill);
+}
+
+/* A priority you set reads in the accent colour, so it is clear the parser did not choose it. */
+.chip__weight--manual .chip__dot--on,
+.chip--manual .chip__weight--manual .chip__dot--on {
+  background: var(--accent-base);
 }
 
 .chip__dot {

@@ -110,7 +110,7 @@ const CREATE_KEYWORDS_TABLE = `
   CREATE TABLE IF NOT EXISTS resume_keywords (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     keyword TEXT NOT NULL UNIQUE,
-    weight  REAL NOT NULL DEFAULT 1,
+    weight  REAL NOT NULL DEFAULT 3,
     source  TEXT NOT NULL DEFAULT 'auto',
     enabled INTEGER NOT NULL DEFAULT 1
   )
@@ -185,6 +185,16 @@ export function migrate() {
 
   // File size, shown on the resume card.
   addColumn('resume', 'bytes', 'INTEGER NOT NULL DEFAULT 0')
+
+  // Keyword weight used to be an occurrence count of 1–3 that scoring ignored;
+  // it is now a priority of 1–5 where one occurrence is normal (3). Converted
+  // once, in the same step that adds the "set by you" flag.
+  if (!hasColumn('resume_keywords', 'weight_manual')) {
+    withTransaction(() => {
+      addColumn('resume_keywords', 'weight_manual', 'INTEGER NOT NULL DEFAULT 0')
+      db.exec('UPDATE resume_keywords SET weight = MIN(5, MAX(1, ROUND(weight)) + 2)')
+    })
+  }
 
   db.exec('CREATE INDEX IF NOT EXISTS idx_jobs_first_seen ON jobs (first_seen_at DESC)')
   db.exec('CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs (status)')

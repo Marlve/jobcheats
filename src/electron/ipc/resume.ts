@@ -7,12 +7,14 @@ import {
   listKeywords,
   removeKeyword,
   setKeywordEnabled,
+  setKeywordWeight,
 } from "../db/db.js"
 import {
   validateBoolean,
   validateId,
   validateKeyword,
   validateResumePath,
+  validateTexSource,
   validateWeight,
   ValidationError,
 } from "./validate.js"
@@ -46,6 +48,18 @@ export function registerResumeIPC() {
 
   ipcMain.handle("deleteResume", (): boolean => resumeService.deleteResume())
 
+  // ---------- LaTeX editor ----------
+
+  ipcMain.handle("getResumeTex", (): string | null => resumeService.storedMasterTex()?.source ?? null)
+
+  ipcMain.handle("previewResumeTex", (_event, raw: unknown): Promise<TexPreviewResult> =>
+    resumeService.previewTex(validateTexSource(raw))
+  )
+
+  ipcMain.handle("saveResumeTex", (_event, raw: unknown): Promise<UploadResumeResult> =>
+    resumeService.saveTex(validateTexSource(raw))
+  )
+
   // ---------- keywords ----------
 
   ipcMain.handle("listKeywords", (): ResumeKeyword[] => listKeywords())
@@ -62,6 +76,24 @@ export function registerResumeIPC() {
   ipcMain.handle("setKeywordEnabled", (_event, rawId: unknown, rawEnabled: unknown): boolean =>
     afterKeywordChange(setKeywordEnabled(validateId(rawId), validateBoolean(rawEnabled, 'enabled')))
   )
+
+  /** Your priority for a keyword, 1–5. Kept when the resume is re-read. */
+  ipcMain.handle("setKeywordWeight", (_event, rawId: unknown, rawWeight: unknown): boolean =>
+    afterKeywordChange(setKeywordWeight(validateId(rawId), validateWeight(rawWeight), true))
+  )
+
+  /** Drops your priority: an auto keyword goes back to what the resume says, a hand-added one to normal. */
+  ipcMain.handle("resetKeywordWeight", async (_event, rawId: unknown): Promise<boolean> => {
+    const id = validateId(rawId)
+    const row = listKeywords().find(keyword => keyword.id === id)
+    if (!row) return false
+
+    const { extractKeywords, NORMAL_PRIORITY } = await import("../services/keywordService.js")
+    const text = row.source === 'auto' ? resumeService.getResumeText() : null
+    const auto = text ? extractKeywords(text).find(keyword => keyword.keyword === row.keyword)?.weight : undefined
+
+    return afterKeywordChange(setKeywordWeight(id, auto ?? NORMAL_PRIORITY, false))
+  })
 
   /** Re-derives auto keywords from the stored resume text. */
   ipcMain.handle("resetKeywords", async (): Promise<ResumeKeyword[]> => {
