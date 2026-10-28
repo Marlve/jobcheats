@@ -1,6 +1,7 @@
 import { BrowserContext } from "playwright"
 import { readStoredAccounts, writeStoredAccounts } from "../db/db.js"
 import { isSeekSignInUrl, linkedInIdentity, seekName, Identity } from "./accounts.js"
+import { AUTH_URL_PATTERNS } from "./boards/linkedin.js"
 import { playwrightService } from "./playwrightService.js"
 import { signInService } from "./signInService.js"
 
@@ -21,19 +22,33 @@ const PAGE_TIMEOUT_MS = 20_000
 const SETTLE_MS = 3_000
 
 async function checkLinkedIn(context: BrowserContext): Promise<Identity | null> {
-  const cookies = await context.cookies('https://www.linkedin.com')
+  const sessionCookies = () => context.cookies('https://www.linkedin.com')
   // No session cookie: signed out, and no request needed to know it.
-  if (!cookies.some(cookie => cookie.name === 'li_at')) return null
+  if (!(await sessionCookies()).some(cookie => cookie.name === 'li_at')) return null
 
-  // LinkedIn wants its CSRF token, the JSESSIONID value without its quotes, on API calls.
-  const csrf = cookies.find(cookie => cookie.name === 'JSESSIONID')?.value.replace(/"/g, '') ?? ''
+  // The API wants a CSRF token: the JSESSIONID value without its quotes. That
+  // cookie only lives as long as the browser, so a profile reopened after a
+  // sign-in has li_at but no JSESSIONID. Opening the feed sets a fresh one, and
+  // where it lands is the real test: a dead session ends on the login page.
+  const page = await context.newPage()
+  try {
+    await page.goto('https://www.linkedin.com/feed/', { waitUntil: 'domcontentloaded', timeout: PAGE_TIMEOUT_MS })
+    if (AUTH_URL_PATTERNS.some(fragment => page.url().includes(fragment))) return null
+  } finally {
+    await page.close().catch(() => {})
+  }
+
+  const csrf = (await sessionCookies()).find(cookie => cookie.name === 'JSESSIONID')?.value.replace(/"/g, '') ?? ''
   const response = await context.request.get('https://www.linkedin.com/voyager/api/me', {
     headers: { 'csrf-token': csrf, 'x-restli-protocol-version': '2.0.0' },
     failOnStatusCode: false,
     timeout: PAGE_TIMEOUT_MS,
   })
-  if (response.status() === 401 || response.status() === 403) return null
-  if (!response.ok()) throw new Error(`LinkedIn answered ${response.status()}.`)
+  // The feed opened, so the session is good; a failed name lookup is "signed in" without a name.
+  if (!response.ok()) {
+    console.warn(`[accounts] linkedin /me answered ${response.status()}`)
+    return { name: '' }
+  }
 
   return linkedInIdentity(await response.json().catch(() => null)) ?? { name: '' }
 }
