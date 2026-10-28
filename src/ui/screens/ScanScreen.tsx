@@ -190,7 +190,13 @@ export function ScanScreen() {
   const sourceNames = enabledBoards.map((board) => SOURCE_LABEL[board.source]);
   const noBoards = boards !== null && enabledBoards.length === 0;
 
-  const canRun = Boolean(effectiveTerm) && enabledBoards.length > 0 && !running;
+  // Why Run scan is off, first reason first. Null when it can run.
+  const blockedReason =
+    boards === null ? 'Loading your job boards…'
+      : noBoards ? 'Every job board is off. Turn one on under Settings › Job boards.'
+        : !effectiveTerm ? 'Type a job title in the search box first. The scan searches for it.'
+          : null;
+  const canRun = blockedReason === null && !running;
   const inserted = results?.reduce((sum, r) => sum + (r.ok ? r.inserted : 0), 0) ?? 0;
 
   // Locations are the one input that does fan out — buildSearchUrls emits a
@@ -212,7 +218,7 @@ export function ScanScreen() {
         <div className="screen__actions">
           {running
             ? <Button variant="danger" onClick={cancel}><IconStop size={14} /> Stop scan</Button>
-            : <Button variant="primary" disabled={!canRun} onClick={run}><IconScan size={14} /> Run scan</Button>}
+            : <Button variant="primary" disabled={!canRun} disabledReason={blockedReason ?? undefined} onClick={run}><IconScan size={14} /> Run scan</Button>}
         </div>
       </header>
 
