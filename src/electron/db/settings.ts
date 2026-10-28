@@ -154,6 +154,19 @@ export function setTailorRewriteEnabled(enabled: boolean): void {
   writeSetting(TAILOR_REWRITE_KEY, enabled ? '1' : '0')
 }
 
+// ---------- board accounts ----------
+
+const ACCOUNTS_KEY = 'boards.accounts'
+
+/** The last sign-in check per board. Unvalidated, for the same reason as the schedule above. */
+export function readStoredAccounts(): unknown {
+  return readJson(ACCOUNTS_KEY)
+}
+
+export function writeStoredAccounts(accounts: AccountMap): void {
+  writeSetting(ACCOUNTS_KEY, JSON.stringify(accounts))
+}
+
 // ---------- search history ----------
 
 const SEARCH_HISTORY_KEY = 'search.history'

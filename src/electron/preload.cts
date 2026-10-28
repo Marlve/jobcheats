@@ -44,6 +44,8 @@ electron.contextBridge.exposeInMainWorld("electron", {
     electron.ipcRenderer.invoke("setBoardEnabled", source, enabled),
 
   signIn: (source: JobSource) => electron.ipcRenderer.invoke("signIn", source),
+  getAccounts: () => electron.ipcRenderer.invoke("getAccounts"),
+  checkAccounts: (source?: JobSource) => electron.ipcRenderer.invoke("checkAccounts", source),
 
   // ---- autofill ----
   getProfile: () => electron.ipcRenderer.invoke("getProfile"),

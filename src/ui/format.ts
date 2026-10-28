@@ -50,3 +50,17 @@ export function daysUntil(value: string | null): number | null {
 
   return Math.max(0, Math.ceil((then - Date.now()) / 86_400_000));
 }
+
+/** "just now", "5 min ago", "3 h ago", "2 days ago". Empty for a date that does not parse. */
+export function formatTimeAgo(value: string): string {
+  const then = toDate(value).getTime();
+  if (Number.isNaN(then)) return '';
+
+  const minutes = Math.max(0, Math.round((Date.now() - then) / 60_000));
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}

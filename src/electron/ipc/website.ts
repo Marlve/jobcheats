@@ -1,6 +1,7 @@
 import { ipcMain, IpcMainInvokeEvent, WebContents } from "electron";
 import { listBoards, setBoard, websiteService } from "../services/websiteService.js";
 import { signInService } from "../services/signInService.js";
+import { accountService } from "../services/accountService.js";
 import { recordSearch } from "../services/searchHistory.js";
 import {
   validateBoolean,
@@ -51,6 +52,14 @@ export function registerWebsiteIPC() {
   // waiting on the window being closed, not on anything being checked.
   ipcMain.handle("signIn", (_event, rawSource: unknown): Promise<SignInResult> => {
     return signInService.signIn(validateBoardSource(rawSource))
+  });
+
+  // The last known sign-in per board; opens nothing.
+  ipcMain.handle("getAccounts", (): AccountMap => accountService.list());
+
+  // Opens the scanner's browser off-screen for a few seconds to ask each board.
+  ipcMain.handle("checkAccounts", (_event, rawSource: unknown): Promise<{ accounts: AccountMap; error?: string }> => {
+    return accountService.check(rawSource === undefined ? undefined : validateBoardSource(rawSource))
   });
 
   // Returns the whole list, not a flag — setBoardEnabled refuses to turn off

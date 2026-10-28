@@ -64,19 +64,56 @@ const PHASE_PROGRESS: Record<ScrapePhase, number> = {
   error: 1,
 };
 
+/** The search form, kept between visits and restarts. */
+const FORM_KEY = 'scan.form';
+
+interface SavedForm {
+  term: string;
+  draft: string;
+  locations: string[];
+  datePosted: DatePosted;
+  jobType: JobType;
+  maxJobs: number;
+}
+
+const DEFAULT_FORM: SavedForm = {
+  term: '', draft: '', locations: [], datePosted: '24h', jobType: 'full-time', maxJobs: 50,
+};
+
+/** The saved form, field by field, so a value from an older version cannot break the screen. */
+function loadForm(): SavedForm {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FORM_KEY) ?? 'null') as Partial<SavedForm> | null;
+    if (!saved || typeof saved !== 'object') return DEFAULT_FORM;
+    return {
+      term: typeof saved.term === 'string' ? saved.term : '',
+      draft: typeof saved.draft === 'string' ? saved.draft : '',
+      locations: Array.isArray(saved.locations) ? saved.locations.filter((l) => typeof l === 'string') : [],
+      datePosted: (['24h', 'week', 'month'] as DatePosted[]).includes(saved.datePosted as DatePosted)
+        ? saved.datePosted as DatePosted : DEFAULT_FORM.datePosted,
+      jobType: (['internship', 'full-time', 'part-time'] as JobType[]).includes(saved.jobType as JobType)
+        ? saved.jobType as JobType : DEFAULT_FORM.jobType,
+      maxJobs: typeof saved.maxJobs === 'number' ? saved.maxJobs : DEFAULT_FORM.maxJobs,
+    };
+  } catch {
+    return DEFAULT_FORM;
+  }
+}
+
 export function ScanScreen() {
+  const [initial] = useState(loadForm);
   // One term per run. Several terms would be OR-joined into a single LinkedIn
   // query, which widens the search rather than running separate ones — the
   // broadest term then dominates a result set already capped and sorted by
   // date. Resume keywords still drive scoring; they just don't drive the query.
-  const [term, setTerm] = useState('');
-  const [draft, setDraft] = useState('');
+  const [term, setTerm] = useState(initial.term);
+  const [draft, setDraft] = useState(initial.draft);
 
-  const [locations, setLocations] = useState<string[]>([]);
+  const [locations, setLocations] = useState<string[]>(initial.locations);
   const [locationDraft, setLocationDraft] = useState('');
-  const [datePosted, setDatePosted] = useState<DatePosted>('24h');
-  const [jobType, setJobType] = useState<JobType>('full-time');
-  const [maxJobs, setMaxJobs] = useState(50);
+  const [datePosted, setDatePosted] = useState<DatePosted>(initial.datePosted);
+  const [jobType, setJobType] = useState<JobType>(initial.jobType);
+  const [maxJobs, setMaxJobs] = useState(initial.maxJobs);
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<ScrapeProgress | null>(null);
@@ -107,6 +144,11 @@ export function ScanScreen() {
     })();
   }, []);
 
+  useEffect(() => {
+    const form: SavedForm = { term, draft, locations, datePosted, jobType, maxJobs };
+    localStorage.setItem(FORM_KEY, JSON.stringify(form));
+  }, [term, draft, locations, datePosted, jobType, maxJobs]);
+
   // Progress arrives on a main-process channel; the unsubscribe must run on
   // unmount or a second visit to the tab stacks a duplicate listener.
   const unsubscribe = useRef<(() => void) | null>(null);
@@ -115,14 +157,19 @@ export function ScanScreen() {
     return () => unsubscribe.current?.();
   }, []);
 
+  // Text typed in the box counts as the term even before Enter: a gray Run scan
+  // next to a filled-in search box reads as broken.
+  const effectiveTerm = term || draft.trim();
+
   // The form as a search, or null until there is a term to search for. Shared
   // by Run scan and the scheduled scan so the two cannot drift apart.
-  const search: SearchParams | null = term
-    ? { keywords: [term], location: locations, datePosted, jobType, maxJobs }
+  const search: SearchParams | null = effectiveTerm
+    ? { keywords: [effectiveTerm], location: locations, datePosted, jobType, maxJobs }
     : null;
 
   async function run() {
     if (!search) return;
+    if (!term) commitTerm(draft);
 
     setRunning(true);
     setResults(null);
@@ -185,7 +232,13 @@ export function ScanScreen() {
   const sourceNames = enabledBoards.map((board) => SOURCE_LABEL[board.source]);
   const noBoards = boards !== null && enabledBoards.length === 0;
 
-  const canRun = Boolean(term) && enabledBoards.length > 0 && !running;
+  // Why Run scan is off, first reason first. Null when it can run.
+  const blockedReason =
+    boards === null ? 'Loading your job boards…'
+      : noBoards ? 'Every job board is off. Turn one on under Settings › Job boards.'
+        : !effectiveTerm ? 'Type a job title in the search box first. The scan searches for it.'
+          : null;
+  const canRun = blockedReason === null && !running;
   const inserted = results?.reduce((sum, r) => sum + (r.ok ? r.inserted : 0), 0) ?? 0;
 
   // Locations are the one input that does fan out — buildSearchUrls emits a
@@ -207,7 +260,7 @@ export function ScanScreen() {
         <div className="screen__actions">
           {running
             ? <Button variant="danger" onClick={cancel}><IconStop size={14} /> Stop scan</Button>
-            : <Button variant="primary" disabled={!canRun} onClick={run}><IconScan size={14} /> Run scan</Button>}
+            : <Button variant="primary" disabled={!canRun} disabledReason={blockedReason ?? undefined} onClick={run}><IconScan size={14} /> Run scan</Button>}
         </div>
       </header>
 

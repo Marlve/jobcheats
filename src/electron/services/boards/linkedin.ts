@@ -205,7 +205,7 @@ async function probeSelectors(page: Page): Promise<string> {
  * PLACEHOLDER — these are the ones observed so far. Replace or extend with the
  * exact links you see; nothing else in this file hard-codes an auth URL.
  */
-const AUTH_URL_PATTERNS = ['/login', '/authwall', '/checkpoint/', '/uas/']
+export const AUTH_URL_PATTERNS = ['/login', '/authwall', '/checkpoint/', '/uas/']
 
 /**
  * URL fragments that mean postings can be reached again — the signal that a
