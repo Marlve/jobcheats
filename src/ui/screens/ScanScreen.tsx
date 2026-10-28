@@ -115,14 +115,19 @@ export function ScanScreen() {
     return () => unsubscribe.current?.();
   }, []);
 
+  // Text typed in the box counts as the term even before Enter: a gray Run scan
+  // next to a filled-in search box reads as broken.
+  const effectiveTerm = term || draft.trim();
+
   // The form as a search, or null until there is a term to search for. Shared
   // by Run scan and the scheduled scan so the two cannot drift apart.
-  const search: SearchParams | null = term
-    ? { keywords: [term], location: locations, datePosted, jobType, maxJobs }
+  const search: SearchParams | null = effectiveTerm
+    ? { keywords: [effectiveTerm], location: locations, datePosted, jobType, maxJobs }
     : null;
 
   async function run() {
     if (!search) return;
+    if (!term) commitTerm(draft);
 
     setRunning(true);
     setResults(null);
@@ -185,7 +190,7 @@ export function ScanScreen() {
   const sourceNames = enabledBoards.map((board) => SOURCE_LABEL[board.source]);
   const noBoards = boards !== null && enabledBoards.length === 0;
 
-  const canRun = Boolean(term) && enabledBoards.length > 0 && !running;
+  const canRun = Boolean(effectiveTerm) && enabledBoards.length > 0 && !running;
   const inserted = results?.reduce((sum, r) => sum + (r.ok ? r.inserted : 0), 0) ?? 0;
 
   // Locations are the one input that does fan out — buildSearchUrls emits a
