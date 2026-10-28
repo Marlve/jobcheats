@@ -104,16 +104,32 @@ export function isKnownSkill(term: string): boolean {
   return SKILLS.has(canonicalSkill(term))
 }
 
-/** Importance is capped at 3 — the UI renders it as the x1/x2/x3 chip badge. */
-const MAX_WEIGHT = 3
+/**
+ * A keyword's weight is its priority: 1 low, 3 normal, 5 high. Scoring
+ * multiplies each covered ask by it, and a skill you do not have counts at
+ * normal, so all-normal priorities score exactly as plain coverage would.
+ */
+export const MIN_PRIORITY = 1
+export const NORMAL_PRIORITY = 3
+export const MAX_PRIORITY = 5
+
+/** The priority a keyword starts with: once in the resume is normal, each repeat one higher. */
+export function autoPriority(frequency: number): number {
+  return Math.min(MAX_PRIORITY, NORMAL_PRIORITY - 1 + Math.max(1, frequency))
+}
+
+/** A stored weight as a whole priority in range — older rows and hand-edited ones included. */
+export function priorityOf(weight: number): number {
+  return Math.max(MIN_PRIORITY, Math.min(MAX_PRIORITY, Math.round(weight)))
+}
 
 /**
  * Ranks the terms that best characterise a resume.
  *
  * Ranking and weight are deliberately different things. Dictionary skills are
  * boosted an order of magnitude so they win a place in the list at all, but the
- * weight shown to the user is just how often the term appears — that is what a
- * person can verify by looking at their own resume.
+ * weight is a starting priority from how often the term appears — something a
+ * person can check against their own resume, and change by hand.
  */
 export function extractKeywords(text: string, limit = AUTO_KEYWORD_COUNT): ExtractedKeyword[] {
   const frequencies = termFrequencies(text)
@@ -130,6 +146,6 @@ export function extractKeywords(text: string, limit = AUTO_KEYWORD_COUNT): Extra
     .slice(0, Math.max(limit, 0))
     .map(({ keyword, frequency }) => ({
       keyword,
-      weight: Math.min(MAX_WEIGHT, frequency),
+      weight: autoPriority(frequency),
     }))
 }

@@ -1,3 +1,25 @@
+/** Which resume was attached: the tailored one with an Open PDF button, or the master and why. */
+function ResumeLine({ tailored }: { tailored: TailoredResume }) {
+  if (tailored.kept.length === 0) {
+    return <p><strong>Resume:</strong> master used. {tailored.error}</p>;
+  }
+
+  const how = `picked by ${tailored.chosenBy === 'claude' ? 'Claude' : 'tags'}${tailored.rewritten ? ', bullets rewritten' : ''}`;
+  return (
+    <p>
+      <strong>Resume:</strong> tailored with {tailored.kept.join(', ')} ({how}){' '}
+      <button
+        type="button"
+        className="btn btn--secondary btn--sm"
+        onClick={() => void window.electron.openTailoredResume(tailored.jobId)}
+      >
+        Open PDF
+      </button>
+      {tailored.error && <span className="t-muted"> {tailored.error}</span>}
+    </p>
+  );
+}
+
 /** What an Autofill press did, in words — shown under the job it was pressed on. */
 export function AutofillNote({ result }: { result: AutofillResult }) {
   if (!result.ok) {
@@ -13,7 +35,7 @@ export function AutofillNote({ result }: { result: AutofillResult }) {
     );
   }
 
-  const { filled, needsYou, skipped, stoppedAt, coverLetterError } = result;
+  const { filled, needsYou, skipped, stoppedAt, coverLetterError, tailored } = result;
 
   if (filled.length === 0 && needsYou.length === 0 && !stoppedAt && !coverLetterError) {
     return (
@@ -28,6 +50,7 @@ export function AutofillNote({ result }: { result: AutofillResult }) {
       <p><strong>Filled {filled.length}:</strong> {filled.join(', ') || 'nothing'}</p>
       {needsYou.length > 0 && <p><strong>Still needs you:</strong> {needsYou.join(' · ')}</p>}
       {coverLetterError && <p><strong>Cover letter not written:</strong> {coverLetterError}</p>}
+      {tailored && <ResumeLine tailored={tailored} />}
       {skipped > 0 && <p className="t-muted">{skipped} other field{skipped === 1 ? '' : 's'} left alone.</p>}
       {stoppedAt === 'review' && (
         <p className="t-muted">Stopped on the last page. Check your answers, then press Submit yourself.</p>

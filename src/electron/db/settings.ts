@@ -132,6 +132,28 @@ export function setCoverLetterEnabled(enabled: boolean): void {
   writeSetting(COVER_LETTER_KEY, enabled ? '1' : '0')
 }
 
+// ---------- tailored resume ----------
+
+const TAILOR_CHOOSE_KEY = 'autofill.tailorChoose'
+const TAILOR_REWRITE_KEY = 'autofill.tailorRewrite'
+
+/** Both off unless turned on: either one sends the job and project text to Claude. */
+export function isTailorChooseEnabled(): boolean {
+  return readSetting(TAILOR_CHOOSE_KEY) === '1'
+}
+
+export function setTailorChooseEnabled(enabled: boolean): void {
+  writeSetting(TAILOR_CHOOSE_KEY, enabled ? '1' : '0')
+}
+
+export function isTailorRewriteEnabled(): boolean {
+  return readSetting(TAILOR_REWRITE_KEY) === '1'
+}
+
+export function setTailorRewriteEnabled(enabled: boolean): void {
+  writeSetting(TAILOR_REWRITE_KEY, enabled ? '1' : '0')
+}
+
 // ---------- search history ----------
 
 const SEARCH_HISTORY_KEY = 'search.history'

@@ -3,7 +3,7 @@
  * directly.
  */
 
-import { canonicalSkill, isKnownSkill, termFrequencies } from "./keywordService.js"
+import { canonicalSkill, isKnownSkill, NORMAL_PRIORITY, priorityOf, termFrequencies } from "./keywordService.js"
 
 /** Extra points per covered skill that also appears in the job title. */
 const TITLE_BONUS = 5
@@ -107,7 +107,9 @@ export function requiredSkills(text: string, resumeKeywords: string[] = []): Map
 /**
  * Scores a job against the enabled resume keywords.
  *
- *   coverage   = weight of asks you cover / weight of everything the job asks
+ *   each ask   = how often the job asks for it × your priority for it
+ *                (a skill you do not have counts at normal priority)
+ *   coverage   = asks you cover / everything the job asks
  *   titleBonus = TITLE_BONUS per covered ask that is also in the job title
  *   score      = min(coverage * 100 + titleBonus, 100)
  *
@@ -140,9 +142,13 @@ export function scoreJob(job: MatchInput, keywords: ResumeKeyword[]): MatchOutco
   // back as your own keyword. Insights counts hits per keyword by name, and
   // would never see "reactjs" score if this handed it "react".
   const held = new Map<string, string>()
-  for (const { keyword } of enabled) {
+  const priority = new Map<string, number>()
+  for (const { keyword, weight } of enabled) {
     const skill = canonicalSkill(keyword.toLowerCase())
-    if (!held.has(skill)) held.set(skill, keyword)
+    if (!held.has(skill)) {
+      held.set(skill, keyword)
+      priority.set(skill, priorityOf(weight))
+    }
   }
 
   // Reading the title as its own posting is what makes the bonus survive
@@ -157,12 +163,15 @@ export function scoreJob(job: MatchInput, keywords: ResumeKeyword[]): MatchOutco
   let totalWeight = 0
 
   for (const [ask, weight] of asks) {
-    totalWeight += weight
-
     const covered = held.get(ask)
+    // Missing asks sit at normal priority. That keeps the denominator the
+    // job's: adding a keyword at any priority can only raise a score.
+    const weighted = weight * (priority.get(ask) ?? NORMAL_PRIORITY)
+    totalWeight += weighted
+
     if (covered !== undefined) {
       matchedKeywords.push(covered)
-      coveredWeight += weight
+      coveredWeight += weighted
       if (titleAsks.has(ask)) titleHits.push(ask)
     } else {
       missingSkills.push(ask)

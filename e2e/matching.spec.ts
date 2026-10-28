@@ -4,8 +4,8 @@ import { canonicalSkill } from '../src/electron/services/keywordService.js';
 import { SKILLS, SKILL_ALIASES } from '../src/electron/services/data/skills.js';
 
 /** Test helper — the real rows come from the database. */
-function keyword(word: string, weight = 1, enabled = true): ResumeKeyword {
-  return { id: 0, keyword: word, weight, source: 'auto', enabled };
+function keyword(word: string, weight = 3, enabled = true): ResumeKeyword {
+  return { id: 0, keyword: word, weight, weightManual: false, source: 'auto', enabled };
 }
 
 const job = {
@@ -227,4 +227,27 @@ test('multi-word keywords match as a phrase', () => {
 
 test('matching is case insensitive', () => {
   expect(scoreJob(job, [keyword('typescript')]).matchedKeywords).toEqual(['typescript']);
+});
+
+test('your priority scales each covered ask; missing asks count at normal priority', () => {
+  // Python x3, Docker x1, Kubernetes x1; Kubernetes is missing.
+  const ad = {
+    title: 'Backend Engineer',
+    aboutText: 'Python services. More Python. Python again. Some Docker and Kubernetes.',
+  };
+  const score = (python: number) => scoreJob(ad, [keyword('python', python), keyword('docker', 3)]).score;
+
+  expect(score(5)).toBe(86); // (15 + 3) / (15 + 3 + 3)
+  expect(score(3)).toBe(80); // (9 + 3) / (9 + 3 + 3), the same as without priorities
+  expect(score(1)).toBe(67); // (3 + 3) / (3 + 3 + 3)
+});
+
+test('adding a keyword never lowers a score, whatever its priority', () => {
+  const ad = { title: 'Engineer', aboutText: 'Python, Docker and Kubernetes.' };
+  const before = scoreJob(ad, [keyword('python')]).score!;
+
+  for (const priority of [1, 2, 3, 4, 5]) {
+    const after = scoreJob(ad, [keyword('python'), keyword('kubernetes', priority)]).score!;
+    expect(after).toBeGreaterThanOrEqual(before);
+  }
 });

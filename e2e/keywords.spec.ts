@@ -43,13 +43,14 @@ test('known multi-word skills survive as one keyword', () => {
   expect(keywords).toContain('machine learning');
 });
 
-test('weight is the occurrence count, capped at 3', () => {
+test('weight is an auto priority from the occurrence count: once 3, twice 4, three or more 5', () => {
   // Weight is what the UI shows as the x1/x2/x3 chip badge, so it has to be
   // something the user can verify by looking at their own resume.
   const keywords = extractKeywords('python python python python docker');
 
-  expect(keywords.find((k) => k.keyword === 'python')?.weight).toBe(3);
-  expect(keywords.find((k) => k.keyword === 'docker')?.weight).toBe(1);
+  expect(keywords.find((k) => k.keyword === 'python')?.weight).toBe(5);
+  expect(keywords.find((k) => k.keyword === 'docker')?.weight).toBe(3);
+  expect(extractKeywords('rust rust').find((k) => k.keyword === 'rust')?.weight).toBe(4);
 });
 
 test('dictionary skills outrank equally frequent non-skills', () => {

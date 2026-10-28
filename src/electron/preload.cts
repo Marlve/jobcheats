@@ -52,6 +52,7 @@ electron.contextBridge.exposeInMainWorld("electron", {
 
   autofill: (url: string) => electron.ipcRenderer.invoke("autofill", url),
   cancelAutofill: () => electron.ipcRenderer.invoke("cancelAutofill"),
+  openTailoredResume: (jobId: number) => electron.ipcRenderer.invoke("openTailoredResume", jobId),
   listAnswers: () => electron.ipcRenderer.invoke("listAnswers"),
   saveAnswer: (question: string, answer: string) =>
     electron.ipcRenderer.invoke("saveAnswer", question, answer),
@@ -59,6 +60,12 @@ electron.contextBridge.exposeInMainWorld("electron", {
   getCoverLetterEnabled: () => electron.ipcRenderer.invoke("getCoverLetterEnabled"),
   setCoverLetterEnabled: (enabled: boolean) =>
     electron.ipcRenderer.invoke("setCoverLetterEnabled", enabled),
+  getTailorChooseEnabled: () => electron.ipcRenderer.invoke("getTailorChooseEnabled"),
+  setTailorChooseEnabled: (enabled: boolean) =>
+    electron.ipcRenderer.invoke("setTailorChooseEnabled", enabled),
+  getTailorRewriteEnabled: () => electron.ipcRenderer.invoke("getTailorRewriteEnabled"),
+  setTailorRewriteEnabled: (enabled: boolean) =>
+    electron.ipcRenderer.invoke("setTailorRewriteEnabled", enabled),
 
   // ---- scheduled scan ----
   getSchedule: () => electron.ipcRenderer.invoke("getSchedule"),
@@ -133,6 +140,10 @@ electron.contextBridge.exposeInMainWorld("electron", {
 
   deleteResume: () => electron.ipcRenderer.invoke("deleteResume"),
 
+  getResumeTex: () => electron.ipcRenderer.invoke("getResumeTex"),
+  previewResumeTex: (source: string) => electron.ipcRenderer.invoke("previewResumeTex", source),
+  saveResumeTex: (source: string) => electron.ipcRenderer.invoke("saveResumeTex", source),
+
   // ---- keywords ----
   listKeywords: () => electron.ipcRenderer.invoke("listKeywords"),
 
@@ -143,6 +154,9 @@ electron.contextBridge.exposeInMainWorld("electron", {
 
   setKeywordEnabled: (id: number, enabled: boolean) =>
     electron.ipcRenderer.invoke("setKeywordEnabled", id, enabled),
+  setKeywordWeight: (id: number, weight: number) =>
+    electron.ipcRenderer.invoke("setKeywordWeight", id, weight),
+  resetKeywordWeight: (id: number) => electron.ipcRenderer.invoke("resetKeywordWeight", id),
 
   resetKeywords: () => electron.ipcRenderer.invoke("resetKeywords"),
 

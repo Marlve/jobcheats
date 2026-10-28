@@ -1,6 +1,6 @@
 import { Frame, Locator, Page } from "playwright"
 import type { AnswerBank } from "./answers.js"
-import { decide, displayLabel, FormField, isCoverLetterField, isSavableQuestion, usesSavedResume } from "./matcher.js"
+import { decide, displayLabel, FormField, isCoverLetterField, isResumeChoice, isResumeField, isSavableQuestion, usesSavedResume } from "./matcher.js"
 
 /**
  * Reads the form in front of you and fills what the matcher is sure about.
@@ -145,7 +145,8 @@ function readFields(frame: Frame, within: string | undefined): Promise<FormField
         options = Array.from(select.options).map(option => clean(option.textContent))
         value = select.selectedIndex > 0 ? clean(select.options[select.selectedIndex]?.textContent) : ''
       }
-      if (type === 'file') value = (el as HTMLInputElement).files?.length ? 'attached' : ''
+      // The attached file's name, so a tailored upload already in place is not sent again.
+      if (type === 'file') value = (el as HTMLInputElement).files?.[0]?.name ?? ''
 
       fields.push({
         id,
@@ -245,7 +246,13 @@ export type LetterSource = () => Promise<string | null>
 /** Everything a fill needs to know besides the page. */
 export interface FillContext {
   profile: Profile
-  resumePath: string | null
+  /** The résumé file to attach, asked for only when a form wants one (it may be tailored first). */
+  resume: () => Promise<string | null>
+  /** Set when that file must be uploaded instead of any résumé saved on the site: its file name. */
+  uploadName?: string
+  /** Whether that upload already went into this window, and how to note that it did. */
+  resumeAttached?: () => boolean
+  onResumeAttached?: () => void
   /** Present when cover letters are switched on. */
   letter?: LetterSource
   /** Present to fill from, learn into and note unanswered questions in the saved answers. */
@@ -268,14 +275,14 @@ export async function learnTyped(page: Page, answers: AnswerBank, profile: Profi
   }
 }
 
-/** Time for a revealed text box to render after "Write a cover letter" is picked. */
+/** Time for a revealed box to render after "Write a cover letter" or "Upload a resume" is picked. */
 const REVEAL_MS = 800
 
 export async function fillPage(page: Page, ctx: FillContext, within?: string): Promise<FillReport> {
   const first = await fillOnce(page, ctx, within)
   if (!first.revealed) return first.report
 
-  // Choosing "Write a cover letter" puts a text box on the page that the first read could not see.
+  // Choosing "Write a cover letter" or "Upload a resume" puts a box on the page that the first read could not see.
   await page.waitForTimeout(REVEAL_MS)
   const second = await fillOnce(page, ctx, within)
 
@@ -292,7 +299,7 @@ async function fillOnce(
   ctx: FillContext,
   within: string | undefined,
 ): Promise<{ report: FillReport; revealed: boolean }> {
-  const { profile, resumePath, letter, answers } = ctx
+  const { profile, resume, uploadName, letter, answers } = ctx
   const report: FillReport = { filled: [], needsYou: [], skipped: 0 }
   const attempted: { field: FormField; target: Locator }[] = []
   let revealed = false
@@ -300,7 +307,7 @@ async function fillOnce(
   for (const frame of page.frames()) {
     // A frame can detach mid-read (an ad, a redirect); losing it is not losing the page.
     const fields = await readFields(frame, within).catch(() => [] as FormField[])
-    const savedResume = usesSavedResume(fields)
+    const savedResume = !uploadName && usesSavedResume(fields)
 
     for (const field of fields) {
       // An answer already in the form is one you gave: keep it for next time.
@@ -308,9 +315,12 @@ async function fillOnce(
         answers.learn(field.label, field.value, field.options)
       }
 
+      const attached = ctx.resumeAttached?.() ?? false
       const action = decide(field, profile, {
         writeLetters: letter !== undefined,
         savedResume,
+        uploadName,
+        resumeAttached: attached,
         savedAnswer: answers && (label => answers.lookup(label)),
       })
       if (!letter && isCoverLetterField(field)) ctx.letterOff?.()
@@ -332,9 +342,13 @@ async function fillOnce(
         } else if (action?.kind === 'option') {
           await target.selectOption({ label: action.option }, { timeout: FIELD_TIMEOUT_MS })
           sent = true
-        } else if (action?.kind === 'file' && resumePath) {
-          await target.setInputFiles(resumePath, { timeout: FIELD_TIMEOUT_MS })
-          sent = true
+        } else if (action?.kind === 'file') {
+          const file = await resume()
+          if (file) {
+            await target.setInputFiles(file, { timeout: FIELD_TIMEOUT_MS })
+            sent = true
+            if (uploadName) ctx.onResumeAttached?.()
+          }
         } else if (action?.kind === 'coverLetter' && letter) {
           const text = await letter()
           if (text) {
@@ -346,10 +360,10 @@ async function fillOnce(
         console.warn(`[autofill] could not fill "${field.label}":`, err instanceof Error ? err.message : err)
       }
 
-      if (sent && field.tag === 'radio' && isCoverLetterField(field)) revealed = true
+      if (sent && field.tag === 'radio' && (isCoverLetterField(field) || (uploadName && isResumeChoice(field)))) revealed = true
 
       if (sent) attempted.push({ field, target })
-      else if (field.value || (field.type === 'file' && savedResume)) report.skipped++
+      else if (field.value || (field.type === 'file' && savedResume) || (attached && (isResumeField(field) || isResumeChoice(field)))) report.skipped++
       else leaveUnfilled(report, field, ctx)
     }
   }

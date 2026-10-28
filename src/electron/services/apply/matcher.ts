@@ -140,6 +140,13 @@ export function usesSavedResume(fields: FormField[]): boolean {
 export interface DecideOptions {
   /** A saved résumé is in use (see `usesSavedResume`), so the file box is left empty. */
   savedResume?: boolean
+  /** Upload this file instead of any saved résumé: a file box holding anything else gets it, and a résumé choice picks "upload". */
+  uploadName?: string
+  /**
+   * The upload already went into this window. Résumé boxes and choices are left
+   * alone: a site's upload widget may empty its file box, or name the choice after the file.
+   */
+  resumeAttached?: boolean
   /** Whether cover letters are switched on: without it the "write a cover letter" choice is not made for you. */
   writeLetters?: boolean
   /** The saved answer to a question, if there is one. */
@@ -189,7 +196,9 @@ export function isSavableQuestion(field: FormField, profile: Profile): boolean {
  */
 export function decide(field: FormField, profile: Profile, options: DecideOptions = {}): FillAction | null {
   if (field.type === 'file') {
-    return isResumeField(field) && !field.value && !options.savedResume ? { kind: 'file' } : null
+    if (!isResumeField(field) || options.resumeAttached) return null
+    if (options.uploadName) return field.value === options.uploadName ? null : { kind: 'file' }
+    return !field.value && !options.savedResume ? { kind: 'file' } : null
   }
 
   if (field.tag === 'radio' && options.writeLetters && isCoverLetterField(field)) {
@@ -200,6 +209,11 @@ export function decide(field: FormField, profile: Profile, options: DecideOption
   }
 
   if (field.tag === 'radio' && isResumeChoice(field)) {
+    if (options.resumeAttached) return null
+    if (options.uploadName) {
+      const upload = field.options.find(option => UPLOAD_OPTION.test(option.trim()))
+      return upload && !UPLOAD_OPTION.test(field.value.trim()) ? { kind: 'option', option: upload } : null
+    }
     const saved = field.options.find(option => !UPLOAD_OPTION.test(option.trim()))
     return saved && !field.value ? { kind: 'option', option: saved } : null
   }

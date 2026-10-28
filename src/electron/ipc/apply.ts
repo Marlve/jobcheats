@@ -1,8 +1,16 @@
-import { ipcMain } from "electron";
-import { isCoverLetterEnabled, setCoverLetterEnabled } from "../db/db.js";
+import { ipcMain, shell } from "electron";
+import {
+  isCoverLetterEnabled,
+  isTailorChooseEnabled,
+  isTailorRewriteEnabled,
+  setCoverLetterEnabled,
+  setTailorChooseEnabled,
+  setTailorRewriteEnabled,
+} from "../db/db.js";
 import { answerService } from "../services/answerService.js";
 import { applyService, readProfile, saveProfile } from "../services/applyService.js";
-import { validateAnswer, validateBoolean, validateProfile, validateQuestion, validateWebUrl } from "./validate.js";
+import { existingTailoredPdf } from "../services/tailor/tailoredFiles.js";
+import { validateAnswer, validateBoolean, validateId, validateProfile, validateQuestion, validateWebUrl } from "./validate.js";
 
 export function registerApplyIPC() {
   ipcMain.handle("getProfile", (): Profile => readProfile());
@@ -14,6 +22,20 @@ export function registerApplyIPC() {
   ipcMain.handle("setCoverLetterEnabled", (_event, raw: unknown): boolean => {
     setCoverLetterEnabled(validateBoolean(raw, 'enabled'));
     return isCoverLetterEnabled();
+  });
+
+  ipcMain.handle("getTailorChooseEnabled", (): boolean => isTailorChooseEnabled());
+
+  ipcMain.handle("setTailorChooseEnabled", (_event, raw: unknown): boolean => {
+    setTailorChooseEnabled(validateBoolean(raw, 'enabled'));
+    return isTailorChooseEnabled();
+  });
+
+  ipcMain.handle("getTailorRewriteEnabled", (): boolean => isTailorRewriteEnabled());
+
+  ipcMain.handle("setTailorRewriteEnabled", (_event, raw: unknown): boolean => {
+    setTailorRewriteEnabled(validateBoolean(raw, 'enabled'));
+    return isTailorRewriteEnabled();
   });
 
   ipcMain.handle("listAnswers", (): SavedAnswer[] => answerService.list());
@@ -33,4 +55,10 @@ export function registerApplyIPC() {
   });
 
   ipcMain.handle("cancelAutofill", (): Promise<void> => applyService.cancel());
+
+  // The renderer names a job, never a path, so only a tailored PDF can be opened this way.
+  ipcMain.handle("openTailoredResume", async (_event, raw: unknown): Promise<boolean> => {
+    const pdf = existingTailoredPdf(validateId(raw));
+    return pdf !== null && (await shell.openPath(pdf)) === "";
+  });
 }

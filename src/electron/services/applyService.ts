@@ -10,6 +10,7 @@ import { watchTyping } from "./apply/typingWatcher.js"
 import { playwrightService } from "./playwrightService.js"
 import { resumeService } from "./resumeService.js"
 import { signInService } from "./signInService.js"
+import { tailorResume } from "./tailor/tailorService.js"
 
 /**
  * Autofilling an application, with a person in charge.
@@ -33,6 +34,9 @@ import { signInService } from "./signInService.js"
  *
  * With cover letters switched on in Settings, a cover-letter box is filled with
  * a letter written by `claude -p` from the résumé and the listing.
+ *
+ * With a tagged LaTeX résumé stored, the file attached is one tailored to the
+ * listing, uploaded in place of any résumé saved on the site.
  */
 
 const EMPTY_PROFILE: Profile = {
@@ -54,6 +58,13 @@ let letterAbort: AbortController | null = null
 let generation = 0
 /** Why the last press could not write a letter, for the note under the job. */
 let letterError: string | null = null
+let resumePromise: Promise<string | null> | null = null
+/** Stops tailoring the résumé when its window is put away. */
+let resumeAbort: AbortController | null = null
+/** How the résumé was tailored in this window, for the note under the job. */
+let tailored: TailoredResume | null = null
+/** The upload went into this window once: a site that empties its file box afterwards does not get it again. */
+let resumeAttached = false
 /** Autofill's own typing fires the events the watcher listens for, and it saves the answers itself. */
 let autofilling = false
 let stopWatching: (() => void) | null = null
@@ -137,6 +148,29 @@ function letterSource(profile: Profile): LetterSource | undefined {
 }
 
 /**
+ * The résumé file to attach. With a tagged LaTeX master it is tailored to the job
+ * in the application window, at most once per window; a failure gives the master PDF.
+ */
+function resumeSource(tailorable: boolean): () => Promise<string | null> {
+  return () => {
+    const job = applyJob
+    if (!tailorable || !job) return Promise.resolve(resumeService.storedResumePath())
+
+    if (!resumePromise) {
+      const abort = (resumeAbort = new AbortController())
+      resumePromise = tailorResume(job, abort.signal).then(outcome => {
+        if (!abort.signal.aborted) {
+          const { kept, chosenBy, rewritten, error } = outcome
+          tailored = { jobId: job.id, kept, chosenBy, rewritten, ...(error && { error }) }
+        }
+        return outcome.pdfPath
+      })
+    }
+    return resumePromise
+  }
+}
+
+/**
  * Presses the listing's Apply button and fills what that leads to. Null means
  * there was nothing to press, or the Apply went nowhere.
  *
@@ -187,6 +221,11 @@ async function continueApplication(page: Page, context: BrowserContext, ctx: Fil
 async function closeApplyWindow(): Promise<void> {
   letterAbort?.abort()
   letterAbort = null
+  resumeAbort?.abort()
+  resumeAbort = null
+  resumePromise = null
+  tailored = null
+  resumeAttached = false
   await playwrightService.closeBrowser()
   applyContext = null
   applyJob = null
@@ -209,13 +248,12 @@ async function learnFromWindow(context: BrowserContext): Promise<void> {
   save()
 }
 
-/** What a press hands back: the cover-letter problem, if any, added, and a note that something was filled. */
+/** What a press hands back: the cover-letter problem and the tailored résumé, if any, added, and a note that something was filled. */
 function finish(result: AutofillResult): AutofillResult {
-  if (result.ok && result.stage === 'filled' && result.filled.length > 0) filledSomething = true
+  if (!result.ok || result.stage !== 'filled') return result
+  if (result.filled.length > 0) filledSomething = true
 
-  return letterError && result.ok && result.stage === 'filled'
-    ? { ...result, coverLetterError: letterError }
-    : result
+  return { ...result, ...(letterError && { coverLetterError: letterError }), ...(tailored && { tailored }) }
 }
 
 async function openJob(url: string, ctx: FillContext): Promise<AutofillResult> {
@@ -231,9 +269,17 @@ async function openJob(url: string, ctx: FillContext): Promise<AutofillResult> {
   applyJob = findJobByUrl(url)
   applyUrl = url
   letterPromise = null
+  resumePromise = null
+  tailored = null
+  resumeAttached = false
   filledSomething = false
   context.once('close', () => {
     if (applyContext === context) {
+      resumeAbort?.abort()
+      resumeAbort = null
+      resumePromise = null
+      tailored = null
+      resumeAttached = false
       applyContext = null
       applyJob = null
       applyUrl = null
@@ -287,9 +333,14 @@ export const applyService = {
 
     letterError = null
     const { bank, save } = openAnswers()
+    const tailorable = resumeService.isTailorable()
     const ctx: FillContext = {
       profile,
-      resumePath: resumeService.storedResumePath(),
+      resume: resumeSource(tailorable),
+      // The tailored file goes in place of any résumé saved on the site.
+      uploadName: tailorable ? resumeService.storedMasterTex()?.pdfName : undefined,
+      resumeAttached: () => resumeAttached,
+      onResumeAttached: () => { resumeAttached = true },
       letter: letterSource(profile),
       answers: bank,
       // Shown as "Cover letter not written: …" under the job.
