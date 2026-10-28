@@ -43,6 +43,10 @@ interface Window {
      * scans use. Resolves when that window is closed, which can be minutes.
      */
     signIn: (source: BoardSource) => Promise<SignInResult>;
+    /** The last sign-in check per board. Opens nothing. */
+    getAccounts: () => Promise<AccountMap>;
+    /** Asks the boards now, in the scanner's browser off-screen (a few seconds). */
+    checkAccounts: (source?: BoardSource) => Promise<{ accounts: AccountMap; error?: string }>;
 
     // ---- autofill ----
     getProfile: () => Promise<Profile>;
@@ -197,6 +201,20 @@ interface BoardPreference {
 
 /** `ok` means the window was opened and has since been closed, not that anyone signed in. */
 type SignInResult = { ok: true } | { ok: false; error: string }
+
+/** Who a board says is signed in, as of `checkedAt`. */
+interface AccountStatus {
+  state: 'signed-in' | 'signed-out' | 'unknown';
+  /** The account's name, when the site shows it. */
+  name?: string;
+  /** A profile link or email that tells two accounts apart. */
+  detail?: string;
+  /** Why the state is unknown. */
+  error?: string;
+  checkedAt: string;
+}
+
+type AccountMap = Partial<Record<BoardSource, AccountStatus>>
 
 // ---------- autofill ----------
 
