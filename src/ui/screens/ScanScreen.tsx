@@ -64,19 +64,56 @@ const PHASE_PROGRESS: Record<ScrapePhase, number> = {
   error: 1,
 };
 
+/** The search form, kept between visits and restarts. */
+const FORM_KEY = 'scan.form';
+
+interface SavedForm {
+  term: string;
+  draft: string;
+  locations: string[];
+  datePosted: DatePosted;
+  jobType: JobType;
+  maxJobs: number;
+}
+
+const DEFAULT_FORM: SavedForm = {
+  term: '', draft: '', locations: [], datePosted: '24h', jobType: 'full-time', maxJobs: 50,
+};
+
+/** The saved form, field by field, so a value from an older version cannot break the screen. */
+function loadForm(): SavedForm {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FORM_KEY) ?? 'null') as Partial<SavedForm> | null;
+    if (!saved || typeof saved !== 'object') return DEFAULT_FORM;
+    return {
+      term: typeof saved.term === 'string' ? saved.term : '',
+      draft: typeof saved.draft === 'string' ? saved.draft : '',
+      locations: Array.isArray(saved.locations) ? saved.locations.filter((l) => typeof l === 'string') : [],
+      datePosted: (['24h', 'week', 'month'] as DatePosted[]).includes(saved.datePosted as DatePosted)
+        ? saved.datePosted as DatePosted : DEFAULT_FORM.datePosted,
+      jobType: (['internship', 'full-time', 'part-time'] as JobType[]).includes(saved.jobType as JobType)
+        ? saved.jobType as JobType : DEFAULT_FORM.jobType,
+      maxJobs: typeof saved.maxJobs === 'number' ? saved.maxJobs : DEFAULT_FORM.maxJobs,
+    };
+  } catch {
+    return DEFAULT_FORM;
+  }
+}
+
 export function ScanScreen() {
+  const [initial] = useState(loadForm);
   // One term per run. Several terms would be OR-joined into a single LinkedIn
   // query, which widens the search rather than running separate ones — the
   // broadest term then dominates a result set already capped and sorted by
   // date. Resume keywords still drive scoring; they just don't drive the query.
-  const [term, setTerm] = useState('');
-  const [draft, setDraft] = useState('');
+  const [term, setTerm] = useState(initial.term);
+  const [draft, setDraft] = useState(initial.draft);
 
-  const [locations, setLocations] = useState<string[]>([]);
+  const [locations, setLocations] = useState<string[]>(initial.locations);
   const [locationDraft, setLocationDraft] = useState('');
-  const [datePosted, setDatePosted] = useState<DatePosted>('24h');
-  const [jobType, setJobType] = useState<JobType>('full-time');
-  const [maxJobs, setMaxJobs] = useState(50);
+  const [datePosted, setDatePosted] = useState<DatePosted>(initial.datePosted);
+  const [jobType, setJobType] = useState<JobType>(initial.jobType);
+  const [maxJobs, setMaxJobs] = useState(initial.maxJobs);
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<ScrapeProgress | null>(null);
@@ -106,6 +143,11 @@ export function ScanScreen() {
       setBoards(boardList);
     })();
   }, []);
+
+  useEffect(() => {
+    const form: SavedForm = { term, draft, locations, datePosted, jobType, maxJobs };
+    localStorage.setItem(FORM_KEY, JSON.stringify(form));
+  }, [term, draft, locations, datePosted, jobType, maxJobs]);
 
   // Progress arrives on a main-process channel; the unsubscribe must run on
   // unmount or a second visit to the tab stacks a duplicate listener.
