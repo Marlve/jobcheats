@@ -54,6 +54,27 @@
   margin-top: 3px;
 }
 
+/* ---------- board account ---------- */
+
+.account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 4px;
+}
+
+.account--in {
+  color: var(--score-strong);
+}
+
+.account--in strong {
+  color: var(--text-primary);
+}
+
+.account--out {
+  color: var(--status-warning);
+}
+
 /* ---------- about ---------- */
 
 .settings__version {

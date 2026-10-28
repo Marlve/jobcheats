@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../components/Button';
-import { IconDocument, IconLock, IconWarning } from '../components/Icons';
+import { IconCheck, IconDocument, IconLock, IconWarning } from '../components/Icons';
 import { SOURCE_LABEL } from '../components/StatusPill';
 import { Toggle } from '../components/Toggle';
-import { daysUntil, formatBytes, formatDateTime } from '../format';
+import { daysUntil, formatBytes, formatDateTime, formatTimeAgo } from '../format';
 import './settings.css';
 
 /**
@@ -62,6 +62,28 @@ const HAS_SIGN_IN: Record<BoardSource, boolean> = {
   japandev: false,
 };
 
+/** Who the board said is signed in, and when it was asked. */
+function AccountLine({ status, checking }: { status?: AccountStatus; checking: boolean }) {
+  if (checking) return <p className="t-caption t-secondary" role="status">Checking who is signed in…</p>;
+  if (!status) return <p className="t-caption t-muted">Not checked yet. Press Check to find out who is signed in.</p>;
+
+  const when = formatTimeAgo(status.checkedAt);
+  if (status.state === 'signed-in') {
+    return (
+      <p className="t-caption account account--in">
+        <IconCheck size={12} />
+        {status.name ? <>Signed in as <strong>{status.name}</strong></> : 'Signed in'}
+        {status.detail && <span className="t-muted"> · {status.detail}</span>}
+        <span className="t-muted"> · checked {when}</span>
+      </p>
+    );
+  }
+  if (status.state === 'signed-out') {
+    return <p className="t-caption account account--out">Not signed in<span className="t-muted"> · checked {when}</span></p>;
+  }
+  return <p className="t-caption t-muted">Could not check: {status.error ?? 'unknown error'} · {when}</p>;
+}
+
 export function SettingsScreen() {
   const [stats, setStats] = useState<DbStats | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -82,6 +104,8 @@ export function SettingsScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   /** The board whose sign-in window is open. The call stays pending until it closes. */
   const [signingIn, setSigningIn] = useState<BoardSource | null>(null);
+  const [accounts, setAccounts] = useState<AccountMap>({});
+  const [checking, setChecking] = useState<BoardSource | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -106,6 +130,8 @@ export function SettingsScreen() {
       // spend one of the hourly checks GitHub allows.
       window.electron.getUpdateStatus(),
     ]);
+    // The last sign-in check, not a fresh one: checking opens the browser.
+    setAccounts(await window.electron.getAccounts());
     setStats(dbStats);
     setResume(meta);
     setKeywordCount(keywords.length);
@@ -148,20 +174,26 @@ export function SettingsScreen() {
     setNotice(null);
   }
 
-  /**
-   * "ok" only says the window was opened and has been closed — nothing here can
-   * tell whether anyone actually signed in, so the notice does not claim it.
-   */
+  /** "ok" only says the window was closed, so the board is asked straight after who is signed in. */
   async function signIn(source: BoardSource) {
     setSigningIn(source);
     setNotice(null);
     const result = await window.electron.signIn(source);
     setSigningIn(null);
-    setNotice(
-      result.ok
-        ? 'The sign-in window was closed. If you finished signing in, scans will use that session.'
-        : result.error
-    );
+    if (!result.ok) {
+      setNotice(result.error);
+      return;
+    }
+    await checkAccount(source);
+  }
+
+  /** Opens the scanner's browser off-screen for a few seconds and asks the board. */
+  async function checkAccount(source: BoardSource) {
+    setChecking(source);
+    const result = await window.electron.checkAccounts(source);
+    setChecking(null);
+    setAccounts(result.accounts);
+    if (result.error) setNotice(result.error);
   }
 
   /**
@@ -244,11 +276,24 @@ export function SettingsScreen() {
                             ? 'A browser window is open. Sign in there, Google sign-in included, then close the window.'
                             : BOARD_NOTE[board.source]}
                         </p>
+                        {HAS_SIGN_IN[board.source] && (
+                          <AccountLine status={accounts[board.source]} checking={checking === board.source} />
+                        )}
                       </div>
+                      {HAS_SIGN_IN[board.source] && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={signingIn !== null || checking !== null}
+                          onClick={() => checkAccount(board.source)}
+                        >
+                          Check
+                        </Button>
+                      )}
                       {HAS_SIGN_IN[board.source] && window.electron.platform === 'win32' && (
                         <Button
                           size="sm"
-                          disabled={signingIn !== null}
+                          disabled={signingIn !== null || checking !== null}
                           onClick={() => signIn(board.source)}
                         >
                           {signingIn === board.source ? 'Waiting…' : 'Sign in'}
